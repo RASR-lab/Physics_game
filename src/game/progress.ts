@@ -10,6 +10,7 @@ export interface LevelProgress {
 
 export interface Progress {
   levels: Record<string, LevelProgress>;
+  tutorials?: Record<string, boolean>;
 }
 
 const KEY = "physics-quest-progress-v1";
@@ -44,6 +45,16 @@ export function recordLevel(id: string, update: LevelProgress) {
   // keep the best star count
   if (old && old.stars > update.stars) update = { ...update, stars: old.stars };
   p.levels[id] = update;
+  save(p);
+}
+
+export function tutorialDone(chapter: number): boolean {
+  return !!load().tutorials?.[chapter];
+}
+
+export function markTutorialDone(chapter: number) {
+  const p = load();
+  p.tutorials = { ...(p.tutorials ?? {}), [chapter]: true };
   save(p);
 }
 

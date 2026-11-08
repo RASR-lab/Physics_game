@@ -1,5 +1,6 @@
 import { CHAPTERS, ALL_LEVELS } from "../levels";
-import { getLevel, resetProgress, totalStars } from "../game/progress";
+import { getLevel, resetProgress, totalStars, tutorialDone } from "../game/progress";
+import { TUTORIALS } from "../tutorials";
 import { h, stars } from "./dom";
 
 export function renderHome(root: HTMLElement) {
@@ -18,6 +19,7 @@ export function renderHome(root: HTMLElement) {
       step("1", "Predict", "Commit to a guess about what will happen."),
       step("2", "Play", "Set real physical quantities and run the simulation."),
       step("3", "Explain", "Check your thinking. Unlock the equation in your Journal."),
+      step("🎓", "New here?", "Each world starts with a guided tutorial on how to play and how to think."),
     ),
     h(
       "main.worlds",
@@ -33,6 +35,15 @@ export function renderHome(root: HTMLElement) {
             h("h2", {}, ch.world),
             h("p", {}, `${ch.title}: ${ch.blurb}`),
           ),
+          TUTORIALS[ch.number]
+            ? h(
+                "a.tut-link",
+                { href: `#tutorial-${ch.number}` },
+                h("span", {}, "🎓"),
+                h("span.lv-title", {}, h("strong", {}, "Tutorial"), h("small", {}, "How to play & how to think")),
+                tutorialDone(ch.number) ? h("span.done-tag", {}, "✓ Done") : h("span.new", {}, "Start here"),
+              )
+            : null,
           h(
             "ol.level-list",
             {},

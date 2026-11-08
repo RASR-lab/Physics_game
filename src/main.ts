@@ -4,6 +4,7 @@ import { findLevel } from "./levels";
 import { renderHome } from "./ui/home";
 import { renderJournal } from "./ui/journal";
 import { renderLevel } from "./ui/level";
+import { TUTORIALS } from "./tutorials";
 
 const app = document.getElementById("app")!;
 let cleanup: (() => void) | null = null;
@@ -22,6 +23,14 @@ function route() {
       cleanup = renderLevel(app, lv);
       return;
     }
+  }
+  const t = hash.match(/^tutorial-(\d+)$/);
+  if (t && TUTORIALS[+t[1]]) {
+    const tut = TUTORIALS[+t[1]];
+    const lv = findLevel(tut.levelId)!;
+    document.title = `${tut.title} · Physics Quest`;
+    cleanup = renderLevel(app, lv, { tutorialChapter: tut.chapter });
+    return;
   }
   if (hash === "journal") {
     document.title = "Journal · Physics Quest";

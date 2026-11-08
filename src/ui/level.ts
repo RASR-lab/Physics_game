@@ -1,15 +1,30 @@
-import type { Level, MCQ, Overlays, Sim } from "../levels/types";
+import type { Level, MCQ, Outcome, Overlays, Sim } from "../levels/types";
 import { CHAPTERS, nextLevel } from "../levels";
 import { DT, FixedStepper } from "../physics/core";
 import { Renderer } from "../render/renderer";
 import { LiveGraph } from "../render/graph";
-import { getLevel, recordLevel } from "../game/progress";
+import { getLevel, recordLevel, tutorialDone } from "../game/progress";
+import { TUTORIALS } from "../tutorials";
+import { startTour } from "./tour";
 import { h, stars, tex, texEl } from "./dom";
 
 type Phase = "predict" | "play" | "explain" | "done";
 
-/** Mounts a level screen. Returns a cleanup function. */
-export function renderLevel(root: HTMLElement, level: Level): () => void {
+/** Remote control used by the guided tutorial to demonstrate the level. */
+export interface LevelAPI {
+  level: Level;
+  phase(): Phase;
+  prediction(): number;
+  selectPrediction(i: number): void;
+  lockPrediction(): void;
+  setParam(key: string, v: number): void;
+  launch(): void;
+  isRunning(): boolean;
+  lastOutcome(): Outcome | null;
+}
+
+/** Mounts a level screen. Returns a cleanup function. Pass a chapter number to run its tutorial. */
+export function renderLevel(root: HTMLElement, level: Level, opts: { tutorialChapter?: number } = {}): () => void {
   const chapter = CHAPTERS.find((c) => c.number === level.chapter)!;
   const params: Record<string, number> = Object.fromEntries(level.controls.map((c) => [c.key, c.value]));
   const ov: Overlays = { forces: true, velocity: true, trail: true };
@@ -27,13 +42,15 @@ export function renderLevel(root: HTMLElement, level: Level): () => void {
   let slow = false;
   let sim: Sim = level.create(params);
   let outcomeShown = true;
+  let lastOutcome: Outcome | null = null;
+  const setters: Record<string, (v: number) => void> = {};
 
   /* ---------------- layout ---------------- */
   const canvas = h("canvas.stage", { role: "img", "aria-label": `Simulation: ${level.title}` });
   const graphCanvas = h("canvas.graph", { role: "img", "aria-label": level.graph?.title ?? "graph" });
   const readoutBox = h("dl.readouts");
   const eqBox = h("div.equation", { "aria-live": "off" });
-  const outcomeBox = h("div.outcome", { role: "status", "aria-live": "polite" });
+  const outcomeBox = h("div.outcome", { role: "status", "aria-live": "polite", "data-tour": "outcome" });
 
   const launchBtn = h("button.btn.primary.launch", { onclick: () => launch(), disabled: true }, "▶ Launch");
   const resetBtn = h("button.btn.secondary", { onclick: () => resetSim() }, "↺ Reset");
@@ -46,7 +63,7 @@ export function renderLevel(root: HTMLElement, level: Level): () => void {
     return h("label.toggle", {}, cb, label);
   });
 
-  const controlsBox = h("div.controls");
+  const controlsBox = h("div.controls", { "data-tour": "controls" });
   const sliderInputs: HTMLInputElement[] = [];
   for (const c of level.controls) {
     const num = h("input.num", { type: "number", min: c.min, max: c.max, step: c.step, value: c.value, "aria-label": `${c.label} (${c.unit})` });
@@ -60,18 +77,19 @@ export function renderLevel(root: HTMLElement, level: Level): () => void {
       num.value = String(v);
       if (!running) preview();
     };
+    setters[c.key] = set;
     range.addEventListener("input", () => set(parseFloat(range.value)));
     num.addEventListener("change", () => set(parseFloat(num.value)));
     sliderInputs.push(range, num);
     controlsBox.append(h("div.control", {}, h("label", {}, c.label), h("div.control-row", {}, range, num, h("span.unit", {}, c.unit))));
   }
 
-  const predictBox = h("section.step");
-  const playBox = h("section.step");
-  const explainBox = h("section.step");
+  const predictBox = h("section.step", { "data-tour": "predict" });
+  const playBox = h("section.step", { "data-tour": "play" });
+  const explainBox = h("section.step", { "data-tour": "explain" });
   const doneBox = h("section.step");
   const hintList = h("ol.hints");
-  const hintBtn = h("button.btn.ghost", { onclick: () => showHint() }, `💡 Hint (0/${level.hints.length})`);
+  const hintBtn = h("button.btn.ghost", { "data-tour": "hints", onclick: () => showHint() }, `💡 Hint (0/${level.hints.length})`);
 
   root.replaceChildren(
     h(
@@ -87,19 +105,25 @@ export function renderLevel(root: HTMLElement, level: Level): () => void {
       h(
         "div.left",
         {},
-        h("div.stage-wrap", {}, canvas),
-        h("div.toolbar", {}, launchBtn, pauseBtn, resetBtn, slowBtn, h("div.toggles", {}, ...toggles)),
+        h("div.stage-wrap", { "data-tour": "stage" }, canvas),
+        h("div.toolbar", { "data-tour": "toolbar" }, launchBtn, pauseBtn, resetBtn, slowBtn, h("div.toggles", {}, ...toggles)),
         h(
           "div.data",
-          {},
-          level.graph ? h("div.graph-wrap", {}, graphCanvas) : null,
-          h("div.data-panel", {}, h("h3", {}, "Live data"), readoutBox, h("h3", {}, "The physics, right now"), eqBox),
+          { "data-tour": "datarow" },
+          level.graph ? h("div.graph-wrap", { "data-tour": "graph" }, graphCanvas) : null,
+          h("div.data-panel", { "data-tour": "data" }, h("h3", {}, "Live data"), readoutBox, h("h3", {}, "The physics, right now"), eqBox),
         ),
       ),
       h(
         "aside.right",
         {},
-        h("section.card.hook", {}, h("p", {}, level.hook), h("p.goal", {}, h("strong", {}, "Goal: "), level.goal)),
+        h(
+          "section.card.hook",
+          { "data-tour": "hook" },
+          tutorialBanner(),
+          h("p", {}, level.hook),
+          h("p.goal", {}, h("strong", {}, "Goal: "), level.goal),
+        ),
         predictBox,
         playBox,
         explainBox,
@@ -138,6 +162,7 @@ export function renderLevel(root: HTMLElement, level: Level): () => void {
   }
 
   function lockPrediction() {
+    if (phase !== "predict" || prediction < 0) return;
     phase = "play";
     renderPredict();
     renderPlay();
@@ -318,6 +343,7 @@ export function renderLevel(root: HTMLElement, level: Level): () => void {
     pauseBtn.disabled = true;
     launchBtn.disabled = false;
     const o = sim.outcome();
+    lastOutcome = o;
     outcomeShown = true;
     outcomeBox.className = `outcome ${o.success ? "win" : "fail"}`;
     outcomeBox.replaceChildren(h("strong", {}, o.success ? "✅ Success! " : "❌ Not yet. "), o.message);
@@ -373,7 +399,35 @@ export function renderLevel(root: HTMLElement, level: Level): () => void {
   updatePanel();
   raf = requestAnimationFrame(frame);
 
+  function tutorialBanner() {
+    const ch = level.chapter;
+    const isFirst = chapter.levels[0].id === level.id;
+    if (!isFirst || opts.tutorialChapter !== undefined || !TUTORIALS[ch] || tutorialDone(ch)) return null;
+    return h("p.tut-banner", {}, "New to this chapter? ", h("a", { href: `#tutorial-${ch}` }, "🎓 Take the 3-minute guided tutorial"));
+  }
+
+  const api: LevelAPI = {
+    level,
+    phase: () => phase,
+    prediction: () => prediction,
+    selectPrediction(i) {
+      if (phase !== "predict") return;
+      prediction = i;
+      renderPredict();
+    },
+    lockPrediction,
+    setParam: (k, v) => setters[k]?.(v),
+    launch,
+    isRunning: () => running,
+    lastOutcome: () => lastOutcome,
+  };
+  const stopTour =
+    opts.tutorialChapter !== undefined && TUTORIALS[opts.tutorialChapter]
+      ? startTour(TUTORIALS[opts.tutorialChapter], api)
+      : null;
+
   return () => {
+    stopTour?.();
     cancelAnimationFrame(raf);
     ro.disconnect();
     window.removeEventListener("keydown", onKey);

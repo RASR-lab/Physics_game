@@ -15,6 +15,13 @@ This prototype covers the **first four chapters of the PHYS 211 equation sheet**
 | 5 · Newton's Laws | Newton Station | Coasting in Space · Elevator Scale · Skater Push-Off |
 | 6 · Newton's Laws: Applications | Friction Peaks | Will It Slide? · Spring Scale · Take the Curve |
 
+Each world opens with a **guided tutorial** (🎓 on the map, or `#tutorial-2`, `-3`, `-5`, `-6`).
+It runs inside the chapter's first level. A spotlight walks through the screen and the
+Predict → Play → Explain loop, then plays a deliberately wrong demo attempt to show
+how to reason from a miss. Each step has a "What to think about" box written for that
+chapter (components for vectors, free-body diagrams for Newton's laws, and so on). The
+tutorial ends with a checklist of questions to ask in every level of that chapter.
+
 Each level targets a classic misconception: heavier objects fall faster, motion
 needs a force, a bigger mass pushes harder, a centrifugal force flings you outward.
 Each level has 3 progressive hints and awards up to 3 stars (goal reached,
@@ -39,7 +46,8 @@ No accounts or server. Progress is stored in the browser (`localStorage`).
 - `src/physics/analytic.ts`: exact textbook solutions used by hints and tests.
 - `src/levels/`: one file per chapter. Each level is data (hook, goal, controls, prediction and explanation questions, hints, journal entry), plus a `create()` that returns the simulation for one attempt.
 - `src/render/`: world-to-screen renderer (arrows, rulers, cars…) and the live graph.
-- `src/ui/`: world map, level screen (the POE loop), journal.
+- `src/ui/`: world map, level screen (the POE loop), journal, and the spotlight tour engine (`tour.ts`).
+- `src/tutorials/`: per-chapter tutorial scripts (what to say, what to demo, what to think).
 
 Phaser was skipped for this prototype. Every scene is a single 2D diagram, so plain Canvas kept the bundle small. It can be added later if levels need sprites, tweens or audio.
 
@@ -47,6 +55,7 @@ Phaser was skipped for this prototype. Every scene is a single 2D diagram, so pl
 
 - Projectile range matches `v²·sin(2θ)/g` within 0.5%; free-fall time matches `√(2h/g)`.
 - Spring energy stays within 0.5% over 60 simulated seconds; momentum is conserved in a push-off.
+- Every tutorial spotlights only real screen elements, and its demo attempt really fails (so "learn from the miss" is true).
 - **Every level** succeeds with its reference solution and fails with a known wrong answer and with the default slider values.
 
 ### Design notes
