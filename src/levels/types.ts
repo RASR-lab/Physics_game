@@ -86,11 +86,23 @@ export interface Level {
   create(params: Record<string, number>): Sim;
 }
 
+/**
+ * A level recipe. make() builds one playable version: numbers in the story move by up to ±20%
+ * and the answer options are shuffled. Vary.fixed() gives the textbook version (used by tutorials).
+ */
+export interface LevelDef {
+  id: string;
+  chapter: number;
+  title: string;
+  journal: { title: string; tex: string; note: string };
+  make(v: import("./util").Vary): Level;
+}
+
 export interface Chapter {
   number: number;
   title: string;
   world: string;
   blurb: string;
   color: string;
-  levels: Level[];
+  levels: LevelDef[];
 }
