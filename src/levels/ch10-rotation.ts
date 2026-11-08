@@ -2,12 +2,16 @@ import { G } from "../physics/core";
 import { COLORS } from "../physics/forces";
 import { Vec2, rad } from "../physics/vec2";
 import type { Sim } from "./types";
+import { ground, hillsScreen, lawn, sky, wall } from "../render/art/backdrops";
+import { personTop, ramp } from "../render/art/props";
+import { noisePattern } from "../render/art/core";
 import { defineLevel, f, n, snap } from "./util";
 
 const TAU = 2 * Math.PI;
 
 /** Spoked wheel: center (x, y), radius r, rotated by angle (rad, CCW). */
 export function wheel(r: import("../render/renderer").Renderer, x: number, y: number, rad_: number, angle: number, fill: string, spokes = 6) {
+  if (fill.startsWith("#")) r.circle(x, y, rad_ * 1.04, "#475569");
   r.circle(x, y, rad_, fill, COLORS.ink);
   for (let i = 0; i < spokes; i++) {
     const a = angle + (i * TAU) / spokes;
@@ -93,16 +97,23 @@ const potteryWheel = defineLevel((v) => {
           return { success: false, message: `Stopped after ${f(rev, 2)} turns. ${diff > 0 ? "Brake harder." : "Brake gentler."}` };
         },
         draw(r, ov) {
-          r.clear("#fef3c7", "#fffbeb");
-          // table + wheel (seen from above)
+          // studio floor (wood planks, seen from above)
+          r.ctx.fillStyle = noisePattern(r.ctx, "#c99a6b", { light: 0.04, dark: 0.06, seed: 3 });
+          r.ctx.fillRect(0, 0, r.w, r.h);
+          r.ctx.fillStyle = "rgba(90,55,25,.18)";
+          for (let X = 0; X < r.w; X += 70) r.ctx.fillRect(X, 0, 2, r.h);
+          // splash pan + wheel head
+          r.circle(0.08, -0.08, 1.4, "rgba(0,0,0,.2)");
           r.circle(0, 0, 1.35, "#78716c", COLORS.ink);
+          r.circle(0, 0, 1.27, "#a8a29e");
           wheel(r, 0, 0, 1.2, th, "#d6a86b", 8);
           // start mark
           r.line(1.25, 0, 1.55, 0, "#e63946", 3);
-          r.text("start", 1.75, 0, { size: 12, bold: true, color: "#b91c1c" });
+          r.text("start", 1.8, 0, { size: 12, bold: true, color: "#b91c1c", bg: "rgba(255,255,255,.9)" });
           // clay pot
-          r.circle(0, 0, 0.42, "#b45309", "#7c2d12");
-          r.circle(0, 0, 0.25, "#92400e");
+          r.circle(0, 0, 0.42, "#c2703d", "#7c2d12");
+          r.circle(0, 0, 0.33, "#a65a2c");
+          r.circle(0, 0, 0.25, "#7c3a12");
           if (ov.trail && th > 0) {
             // orange arc = angle turned so far (a full ring once it passes one turn)
             const ctx = r.ctx;
@@ -218,14 +229,28 @@ const carousel = defineLevel((v) => {
           return { success: false, message: `Ava rides at ${f(v, 2)} m/s. ${v > TARGET_V ? "Spin slower." : "Spin faster."}` };
         },
         draw(r, ov) {
-          r.clear("#e0f2fe", "#f0f9ff");
-          r.circle(0, 0, R_OUT + 0.8, "#fde68a", COLORS.ink);
-          r.circle(0, 0, R_IN + 0.8, "#fca5a5", COLORS.ink);
+          lawn(r);
+          r.circle(0, 0, R_OUT + 2.2, "#e7e1d6", "#b8b0a3");
+          r.circle(0.25, -0.25, R_OUT + 0.9, "rgba(0,0,0,.18)");
+          // striped platform (rotates with the ride)
+          const ctx = r.ctx;
+          for (let i = 0; i < 12; i++) {
+            const a0 = th + (i * TAU) / 12,
+              a1 = a0 + TAU / 12;
+            ctx.beginPath();
+            ctx.moveTo(r.sx(0), r.sy(0));
+            ctx.arc(r.sx(0), r.sy(0), (R_OUT + 0.8) * r.scale, -a1, -a0);
+            ctx.closePath();
+            ctx.fillStyle = i % 2 ? "#fde68a" : "#fca5a5";
+            ctx.fill();
+          }
+          r.circle(0, 0, R_OUT + 0.8, "rgba(0,0,0,0)", "#b45309");
+          r.circle(0, 0, R_IN + 0.8, "#93c5fd", COLORS.ink);
           for (let i = 0; i < 12; i++) {
             const a = th + (i * TAU) / 12;
-            r.line(0, 0, (R_OUT + 0.8) * Math.cos(a), (R_OUT + 0.8) * Math.sin(a), "rgba(29,36,51,.25)", 1.5);
+            r.line(0, 0, (R_OUT + 0.8) * Math.cos(a), (R_OUT + 0.8) * Math.sin(a), "rgba(120,53,15,.35)", 1.5);
           }
-          r.circle(0, 0, 0.5, COLORS.ink);
+          r.circle(0, 0, 0.5, "#334155");
           if (ov.trail) {
             r.path(trailIn, "rgba(0,114,178,.6)", 2.5);
             r.path(trailOut, "rgba(213,94,0,.6)", 2.5);
@@ -234,10 +259,10 @@ const carousel = defineLevel((v) => {
           const t = u.perp();
           const pIn = u.scale(R_IN);
           const pOut = u.scale(R_OUT);
-          r.circle(pIn.x, pIn.y, 0.45, "#0072B2", COLORS.ink);
-          r.text("Sam", pIn.x, pIn.y, { size: 10, color: "#fff", bold: true });
-          r.circle(pOut.x, pOut.y, 0.45, "#D55E00", COLORS.ink);
-          r.text("Ava", pOut.x, pOut.y, { size: 10, color: "#fff", bold: true });
+          personTop(r, pIn.x, pIn.y, 1.5, th, "#0072B2");
+          r.text("Sam", pIn.x - t.x * 1.1, pIn.y - t.y * 1.1, { size: 10, color: "#fff", bold: true, bg: "#0072B2" });
+          personTop(r, pOut.x, pOut.y, 1.5, th, "#D55E00");
+          r.text("Ava", pOut.x - t.x * 1.1, pOut.y - t.y * 1.1, { size: 10, color: "#fff", bold: true, bg: "#D55E00" });
           if (ov.velocity) {
             r.arrow(pIn, t.scale(R_IN * w), 25, COLORS.gravity, "v");
             r.arrow(pOut, t.scale(R_OUT * w), 25, COLORS.velocity, "v");
@@ -359,23 +384,28 @@ const rollingRace = defineLevel((v) => {
           return { success: false, message: `Cylinder hit ${f(vC, 2)} m/s. ${vC < TARGET_ROLL_V ? "Start higher." : "Start lower."}` };
         },
         draw(r, ov) {
-          r.clear("#e0f2fe", "#f8fafc");
+          sky(r, r.sy(0), "day");
+          hillsScreen(r, r.sy(0), Math.min(r.h * 0.2, r.sy(0) * 0.4));
+          ground(r, 0, "grass");
           const top = new Vec2(0, h);
           const bottom = new Vec2(h / Math.tan(th), 0);
-          r.rect(-2, -0.3, 12, 0.3, "#a3a3a3");
-          r.poly([[0, 0], [0, h], [bottom.x, 0]], "#d6a86b", "#7c4a1e");
-          r.vruler(0, h, -0.15, h > 1 ? 0.5 : 0.25);
+          ramp(r, [
+            [0, 0],
+            [0, h],
+            [bottom.x, 0],
+          ]);
+          r.vruler(0, h, -0.15, h > 1 ? 0.5 : 0.25, "m", "#334155");
           r.line(bottom.x, 0, bottom.x, 0.5, "#e63946", 3);
-          r.text("finish", bottom.x + 0.08, 0.45, { size: 11, bold: true, color: "#b91c1c", align: "left" });
+          r.text("finish", bottom.x + 0.1, 0.45, { size: 11, bold: true, color: "#b91c1c", align: "left", bg: "rgba(255,255,255,.9)" });
           const down = bottom.sub(top).norm();
           const up = new Vec2(Math.sin(th), Math.cos(th)); // outward normal of the slope
           // ice block (behind) and cylinder (front)
           const pB = top.add(down.scale(sB)).add(up.scale(0.12));
-          r.rotRect(pB.x, pB.y, 0.3, 0.24, -th, "rgba(86,180,233,.75)");
-          r.text("ice", pB.x, pB.y, { size: 9, bold: true });
+          r.rotRect(pB.x, pB.y, 0.3, 0.24, -th, "rgba(186,230,253,.85)", "#38bdf8");
+          r.text("ice", pB.x, pB.y, { size: 9, bold: true, color: "#0c4a6e" });
           const pC = top.add(down.scale(sC)).add(up.scale(WHEEL_R));
           wheel(r, pC.x, pC.y, WHEEL_R, -spin, "#9ca3af", 6);
-          r.text(`${m} kg`, pC.x, pC.y + WHEEL_R + 0.12, { size: 10, bold: true });
+          r.text(`${m} kg`, pC.x, pC.y + WHEEL_R + 0.14, { size: 10, bold: true, bg: "rgba(255,255,255,.9)" });
           if (ov.velocity) {
             r.arrow(pC, down.scale(vC), 22, COLORS.velocity, "v");
             r.arrow(pB.add(up.scale(0.2)), down.scale(vB), 22, COLORS.acceleration, "v");
@@ -482,35 +512,49 @@ const bikeGears = defineLevel((v) => {
           return { success: false, message: `${f(vb, 2)} m/s. ${d > 0 ? "Too fast: bigger rear cog." : "Too slow: smaller rear cog."}` };
         },
         draw(r, ov) {
-          r.clear("#e0f2fe", "#f8fafc");
-          r.rect(-3, -0.15, 6, 0.15, "#6b7280");
+          sky(r, r.sy(0), "day");
+          hillsScreen(r, r.sy(0), Math.min(r.h * 0.3, r.sy(0) * 0.5));
+          ground(r, 0, "asphalt");
           // road dashes scroll with the distance traveled
           for (let k = -4; k < 6; k++) {
             const xx = ((k * 0.6 - (x % 0.6)) % 3.6) - 1.5;
-            r.rect(xx, -0.09, 0.3, 0.03, "#f3f4f6");
+            r.rect(xx, -0.09, 0.3, 0.03, "#fad65c");
           }
           const rear = new Vec2(-0.55, RW),
             front = new Vec2(0.55, RW),
             crank = new Vec2(0, RW);
           const rF = (NF * 0.0127) / TAU,
             rR = (p.nr * 0.0127) / TAU;
-          for (const w of [rear, front]) wheel(r, w.x, w.y, RW, -thW, "rgba(255,255,255,.4)", 12);
+          for (const w of [rear, front]) {
+            wheel(r, w.x, w.y, RW, -thW, "rgba(255,255,255,.4)", 12);
+            // rubber tyre
+            r.ctx.beginPath();
+            r.ctx.arc(r.sx(w.x), r.sy(w.y), RW * r.scale * 0.97, 0, TAU);
+            r.ctx.strokeStyle = "#1f2937";
+            r.ctx.lineWidth = Math.max(3, RW * r.scale * 0.09);
+            r.ctx.stroke();
+          }
           // frame
-          r.line(rear.x, rear.y, crank.x, crank.y, "#0072B2", 4);
-          r.line(crank.x, crank.y, 0.35, 0.75, "#0072B2", 4);
-          r.line(rear.x, rear.y, -0.1, 0.75, "#0072B2", 4);
-          r.line(-0.1, 0.75, 0.35, 0.75, "#0072B2", 4);
-          r.line(0.35, 0.75, front.x, front.y, "#0072B2", 4);
-          r.line(-0.1, 0.75, -0.12, 0.85, "#111827", 3);
-          r.rect(-0.22, 0.85, 0.2, 0.04, "#111827");
+          for (const [ax, ay, bx, by] of [
+            [rear.x, rear.y, crank.x, crank.y],
+            [crank.x, crank.y, 0.35, 0.75],
+            [rear.x, rear.y, -0.1, 0.75],
+            [-0.1, 0.75, 0.35, 0.75],
+            [0.35, 0.75, front.x, front.y],
+          ])
+            r.line(ax, ay, bx, by, "#0072B2", 5);
+          r.line(-0.1, 0.75, -0.12, 0.85, "#1f2937", 3);
+          r.rect(-0.24, 0.85, 0.24, 0.05, "#1f2937", undefined, 3);
+          r.line(0.35, 0.75, 0.32, 0.92, "#475569", 3);
+          r.line(0.26, 0.92, 0.4, 0.92, "#1f2937", 4);
           // chain + gears (gear sizes drawn 2× so they're visible)
           const k = 2;
           r.line(rear.x, rear.y + rR * k, crank.x, crank.y + rF * k, "#374151", 2);
           r.line(rear.x, rear.y - rR * k, crank.x, crank.y - rF * k, "#374151", 2);
           wheel(r, crank.x, crank.y, rF * k, -thP, "#e5e7eb", 5);
           wheel(r, rear.x, rear.y, rR * k, -thW, "#fde68a", 5);
-          r.text(`${NF}T`, crank.x, crank.y - rF * k - 0.06, { size: 10, bold: true });
-          r.text(`${p.nr}T`, rear.x, rear.y - rR * k - 0.06, { size: 10, bold: true });
+          r.text(`${NF}T`, crank.x, crank.y - rF * k - 0.06, { size: 10, bold: true, bg: "rgba(255,255,255,.85)" });
+          r.text(`${p.nr}T`, rear.x, rear.y - rR * k - 0.06, { size: 10, bold: true, bg: "rgba(255,255,255,.85)" });
           // pedal arm
           r.line(crank.x, crank.y, crank.x + 0.17 * Math.cos(-thP), crank.y + 0.17 * Math.sin(-thP), "#111827", 3);
           if (ov.velocity) r.arrow(new Vec2(0, 1.05), new Vec2(vb, 0), 12, COLORS.velocity, "v");
@@ -601,8 +645,11 @@ const centrifuge = defineLevel((v) => {
           return { success: false, message: `${f(gs, 0)} g. ${err > 0 ? "Too fast: you'd crack the tubes." : "Not enough to separate. Spin faster."}` };
         },
         draw(r, ov) {
-          r.clear("#f1f5f9", "#f8fafc");
-          r.circle(0, 0, r0 + 0.045, "#cbd5e1", COLORS.ink);
+          wall(r, "#e2e8f0", "tile");
+          // bench-top centrifuge: steel housing around the rotor
+          r.circle(0.004, -0.004, r0 + 0.07, "rgba(0,0,0,.18)");
+          r.circle(0, 0, r0 + 0.065, "#94a3b8", COLORS.ink);
+          r.circle(0, 0, r0 + 0.045, "#e2e8f0", COLORS.ink);
           const shown = th / 100; // drawn 100× slower so the motion is visible
           for (let i = 0; i < 4; i++) {
             const a = shown + (i * Math.PI) / 2;

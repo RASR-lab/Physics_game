@@ -1,5 +1,9 @@
 import { Vec2 } from "../physics/vec2";
 import { COLORS } from "../physics/forces";
+import { isHex, roundRectPath, shade } from "./art/core";
+import { car as carArt, pennant } from "./art/props";
+
+const INKS = new Set([COLORS.ink, "#111827", "#111", "#000", "#1f2937"]);
 
 export interface View {
   xMin: number;
@@ -32,6 +36,34 @@ export class Renderer {
   private ox = 0;
   private oy = 0;
   private dpr = 1;
+  /** Draw a white outline behind vector arrows so they read over illustrated scenes. */
+  halo = true;
+  /** Soft shading: gradient fills and tinted outlines instead of flat fill + black line. */
+  soft = true;
+  /** Number of HUD lines drawn last frame (so overlays can avoid them). */
+  hudLines = 0;
+
+  /** Fill style for a shape: gentle vertical gradient between screen rows y0..y1. */
+  private paint(fill: string, y0: number, y1: number, amt = 0.12): string | CanvasGradient {
+    if (!this.soft || !isHex(fill) || Math.abs(y1 - y0) < 5) return fill;
+    const g = this.ctx.createLinearGradient(0, y0, 0, y1);
+    g.addColorStop(0, shade(fill, amt));
+    g.addColorStop(1, shade(fill, -amt));
+    return g;
+  }
+
+  /** Outline: a darker tint of the fill instead of near-black ink. */
+  private outline(stroke: string, fill: string) {
+    const c = this.ctx;
+    if (this.soft && INKS.has(stroke) && isHex(fill)) {
+      c.strokeStyle = shade(fill, -0.35);
+      c.lineWidth = 1.5;
+    } else {
+      c.strokeStyle = stroke;
+      c.lineWidth = this.soft ? 1.5 : 2;
+    }
+    c.stroke();
+  }
 
   constructor(public canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext("2d")!;
@@ -95,16 +127,14 @@ export class Renderer {
       Y = this.sy(y + h),
       W = w * this.scale,
       H = h * this.scale;
-    c.beginPath();
-    if (radius > 0 && (c as any).roundRect) (c as any).roundRect(X, Y, W, H, radius);
-    else c.rect(X, Y, W, H);
-    c.fillStyle = fill;
-    c.fill();
-    if (stroke) {
-      c.strokeStyle = stroke;
-      c.lineWidth = 2;
-      c.stroke();
+    if (radius > 0) roundRectPath(c, X, Y, W, H, radius);
+    else {
+      c.beginPath();
+      c.rect(X, Y, W, H);
     }
+    c.fillStyle = this.paint(fill, Y, Y + H, W > 300 || H > 300 ? 0.04 : 0.12);
+    c.fill();
+    if (stroke) this.outline(stroke, fill);
   }
 
   /** Rectangle centered at (cx, cy) rotated by angle (radians, CCW). */
@@ -113,16 +143,12 @@ export class Renderer {
     c.save();
     c.translate(this.sx(cx), this.sy(cy));
     c.rotate(-angle);
-    c.beginPath();
     const W = w * this.scale,
       H = h * this.scale;
-    if ((c as any).roundRect) (c as any).roundRect(-W / 2, -H / 2, W, H, 4);
-    else c.rect(-W / 2, -H / 2, W, H);
-    c.fillStyle = fill;
+    roundRectPath(c, -W / 2, -H / 2, W, H, Math.min(6, Math.min(W, H) * 0.25));
+    c.fillStyle = this.paint(fill, -H / 2, H / 2);
     c.fill();
-    c.strokeStyle = stroke;
-    c.lineWidth = 2;
-    c.stroke();
+    this.outline(stroke, fill);
     c.restore();
   }
 
@@ -131,27 +157,29 @@ export class Renderer {
     c.beginPath();
     pts.forEach(([x, y], i) => (i ? c.lineTo(this.sx(x), this.sy(y)) : c.moveTo(this.sx(x), this.sy(y))));
     c.closePath();
-    c.fillStyle = fill;
+    const ys = pts.map((p) => this.sy(p[1]));
+    c.fillStyle = this.paint(fill, Math.min(...ys), Math.max(...ys));
     c.fill();
-    if (stroke) {
-      c.strokeStyle = stroke;
-      c.lineWidth = 2;
-      c.stroke();
-    }
+    if (stroke) this.outline(stroke, fill);
   }
 
   /** Circle with radius in world meters, or in pixels if minPx is larger. */
   circle(x: number, y: number, r: number, fill: string, stroke?: string, minPx = 0) {
     const c = this.ctx;
+    const X = this.sx(x),
+      Y = this.sy(y),
+      R = Math.max(r * this.scale, minPx);
     c.beginPath();
-    c.arc(this.sx(x), this.sy(y), Math.max(r * this.scale, minPx), 0, Math.PI * 2);
-    c.fillStyle = fill;
+    c.arc(X, Y, R, 0, Math.PI * 2);
+    if (this.soft && isHex(fill) && R > 5) {
+      const g = c.createRadialGradient(X - R * 0.35, Y - R * 0.35, R * 0.05, X, Y, R);
+      g.addColorStop(0, shade(fill, 0.3));
+      g.addColorStop(0.6, fill);
+      g.addColorStop(1, shade(fill, -0.22));
+      c.fillStyle = g;
+    } else c.fillStyle = fill;
     c.fill();
-    if (stroke) {
-      c.strokeStyle = stroke;
-      c.lineWidth = 2;
-      c.stroke();
-    }
+    if (stroke) this.outline(stroke, fill);
   }
 
   line(x1: number, y1: number, x2: number, y2: number, color = COLORS.ink, width = 2, dash: number[] = []) {
@@ -190,19 +218,24 @@ export class Renderer {
     c.textBaseline = o.baseline ?? "middle";
     if (o.bg) {
       const m = c.measureText(str);
-      const w = m.width + 8;
-      const h = size + 6;
+      const w = m.width + (this.soft ? 12 : 8);
+      const h = size + (this.soft ? 8 : 6);
       let bx = X - w / 2;
-      if (c.textAlign === "left" || c.textAlign === "start") bx = X - 4;
-      if (c.textAlign === "right" || c.textAlign === "end") bx = X - w + 4;
+      if (c.textAlign === "left" || c.textAlign === "start") bx = X - (this.soft ? 6 : 4);
+      if (c.textAlign === "right" || c.textAlign === "end") bx = X - w + (this.soft ? 6 : 4);
       let by = Y - h / 2;
       if (c.textBaseline === "top") by = Y - 3;
       if (c.textBaseline === "bottom") by = Y - h + 3;
+      c.save();
+      if (this.soft) {
+        c.shadowColor = "rgba(15,23,42,0.18)";
+        c.shadowBlur = 6;
+        c.shadowOffsetY = 1;
+      }
       c.fillStyle = o.bg;
-      c.beginPath();
-      if ((c as any).roundRect) (c as any).roundRect(bx, by, w, h, 4);
-      else c.rect(bx, by, w, h);
+      roundRectPath(c, bx, by, w, h, this.soft ? h / 2 : 4);
       c.fill();
+      c.restore();
     }
     c.fillStyle = o.color ?? COLORS.ink;
     c.fillText(str, X, Y);
@@ -223,6 +256,27 @@ export class Renderer {
     const ux = dx / L,
       uy = dy / L;
     const head = Math.min(12, L * 0.45);
+    if (this.halo) {
+      // white outline so arrows stay readable over illustrated scenes
+      c.save();
+      c.strokeStyle = "rgba(255,255,255,0.95)";
+      c.fillStyle = "rgba(255,255,255,0.95)";
+      c.lineWidth = width + 4;
+      c.lineCap = "round";
+      c.lineJoin = "round";
+      c.beginPath();
+      c.moveTo(X, Y);
+      c.lineTo(X + dx - ux * head * 0.8, Y + dy - uy * head * 0.8);
+      c.stroke();
+      c.beginPath();
+      c.moveTo(X + dx, Y + dy);
+      c.lineTo(X + dx - ux * head - uy * head * 0.5, Y + dy - uy * head + ux * head * 0.5);
+      c.lineTo(X + dx - ux * head + uy * head * 0.5, Y + dy - uy * head - ux * head * 0.5);
+      c.closePath();
+      c.lineWidth = 4;
+      c.stroke();
+      c.restore();
+    }
     c.strokeStyle = color;
     c.fillStyle = color;
     c.lineWidth = width;
@@ -247,33 +301,14 @@ export class Renderer {
     }
   }
 
-  /** Friendly cartoon car; (x, y) is the bottom-center in world coords, w is length (m). */
-  car(x: number, y: number, w: number, body = "#e4572e", facing = 1) {
-    const h = w * 0.32;
-    const r = w * 0.12;
-    const x0 = x - w / 2;
-    this.rect(x0, y + r * 0.9, w, h * 0.55, body, COLORS.ink, 6);
-    const cabX = facing > 0 ? x0 + w * 0.18 : x0 + w * 0.3;
-    this.rect(cabX, y + r * 0.9 + h * 0.5, w * 0.52, h * 0.5, body, COLORS.ink, 6);
-    this.rect(cabX + w * 0.05, y + r * 0.9 + h * 0.58, w * 0.18, h * 0.32, "#cfe8ff");
-    this.rect(cabX + w * 0.28, y + r * 0.9 + h * 0.58, w * 0.18, h * 0.32, "#cfe8ff");
-    this.circle(x0 + w * 0.22, y + r, r, "#2b2b2b", "#111");
-    this.circle(x0 + w * 0.78, y + r, r, "#2b2b2b", "#111");
-    this.circle(x0 + w * 0.22, y + r, r * 0.45, "#bbb");
-    this.circle(x0 + w * 0.78, y + r, r * 0.45, "#bbb");
+  /** Illustrated car; (x, y) is the bottom-center in world coords, w is length (m). */
+  car(x: number, y: number, w: number, body = "#e4572e", facing = 1, rolled = 0, braking = false) {
+    carArt(this, { x, y, length: w, color: body, facing: facing < 0 ? -1 : 1, rolled, braking });
   }
 
   flag(x: number, y: number, h: number, color = "#e63946", label?: string) {
-    this.line(x, y, x, y + h, COLORS.ink, 2);
-    this.poly(
-      [
-        [x, y + h],
-        [x + h * 0.45, y + h * 0.85],
-        [x, y + h * 0.7],
-      ],
-      color,
-    );
-    if (label) this.text(label, x, y + h + h * 0.18, { size: 12, bold: true, bg: "rgba(255,255,255,.85)" });
+    pennant(this, x, y, h, color);
+    if (label) this.text(label, x, y + h + h * 0.2, { size: 12, bold: true, bg: "rgba(255,255,255,.9)" });
   }
 
   /** Distance ruler along y = yLine from x0 to x1 with ticks every `step` meters. */
@@ -288,7 +323,7 @@ export class Renderer {
       this.ctx.moveTo(X, Y);
       this.ctx.lineTo(X, Y + 6);
       this.ctx.stroke();
-      this.textPx(`${Math.round(x)} ${unit}`, X, Y + 15, { size: 11, color });
+      this.textPx(`${step < 1 ? Math.round(x * 100) / 100 : Math.round(x)} ${unit}`, X, Y + 15, { size: 11, color });
     }
   }
 
@@ -308,10 +343,37 @@ export class Renderer {
     }
   }
 
-  /** Small heads-up label in screen space (top-left stack). */
+  /** Heads-up readouts in screen space (top-left stack of pills). */
   hud(lines: string[]) {
-    lines.forEach((s, i) =>
-      this.textPx(s, 14, 18 + i * 22, { align: "left", size: 13, bold: true, bg: "rgba(255,255,255,.88)" }),
-    );
+    const c = this.ctx;
+    this.hudLines = lines.filter(Boolean).length;
+    c.save();
+    // compact on phones so the readouts don't cover the scene
+    const small = this.w < 600;
+    const fs = small ? 10.5 : 13,
+      ph = small ? 19 : 26,
+      gap = small ? 23 : 32,
+      m = small ? 7 : 12;
+    c.font = `600 ${fs}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    let i = 0;
+    for (const s of lines) {
+      if (!s) continue;
+      const w = c.measureText(s).width + (small ? 14 : 20);
+      const x = m,
+        y = m + i * gap;
+      c.shadowColor = "rgba(15,23,42,0.15)";
+      c.shadowBlur = small ? 6 : 10;
+      c.shadowOffsetY = 2;
+      c.fillStyle = "rgba(255,255,255,0.9)";
+      roundRectPath(c, x, y, w, ph, ph / 2);
+      c.fill();
+      c.shadowColor = "transparent";
+      c.fillStyle = COLORS.ink;
+      c.textAlign = "left";
+      c.textBaseline = "middle";
+      c.fillText(s, x + (small ? 7 : 10), y + ph / 2 + 0.5);
+      i++;
+    }
+    c.restore();
   }
 }

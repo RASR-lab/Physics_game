@@ -2,17 +2,15 @@ import { Body, G, crossFraction, stepBodies } from "../physics/core";
 import { COLORS, applied, gravity } from "../physics/forces";
 import { Vec2 } from "../physics/vec2";
 import type { Sim } from "./types";
-import { defineLevel, f, n, seeded, snap, Strobe } from "./util";
+import { ground, hillsScreen, sky, space, wall } from "../render/art/backdrops";
+import { cargoPod, person, plank, station, tyre } from "../render/art/props";
+import { defineLevel, f, n, snap, Strobe } from "./util";
 
 /* ------------------------------------------------------------------ */
 /* 5-1  Coasting in Space   (Newton's 1st & 2nd law)                   */
 /* ------------------------------------------------------------------ */
 const BURN = 4;
 
-const stars = (() => {
-  const rnd = seeded(7);
-  return Array.from({ length: 90 }, () => ({ x: rnd() * 140 - 20, y: rnd() * 40 - 20, r: rnd() * 1.5 + 0.5 }));
-})();
 
 const coastingInSpace = defineLevel((v) => {
   const STATION_X = v.num(100, 0);
@@ -84,27 +82,20 @@ const coastingInSpace = defineLevel((v) => {
           return { success: false, message: `Docked at ${f(arrive, 2)} s. Need ${T_ARR - 1}–${T_ARR + 1} s. ${arrive < T_ARR - 1 ? "Less thrust." : "More thrust."}` };
         },
         draw(r, ov) {
-          r.clear("#0b1026", "#1a2250");
-          for (const s of stars) r.circle(s.x, s.y, 0, "rgba(255,255,255,.8)", undefined, s.r);
-          // station
-          r.rect(STATION_X, -6, 6, 12, "#94a3b8", "#e2e8f0", 4);
+          space(r, 5);
+          station(r, STATION_X, 0, 6, 12);
           r.line(STATION_X, -14, STATION_X, 14, "rgba(52,211,153,.6)", 2, [6, 6]);
-          r.rect(STATION_X + 6, -12, 2, 24, "#475569");
-          r.rect(STATION_X + 8, -14, 10, 4, "#1e3a8a", "#93c5fd");
-          r.rect(STATION_X + 8, 10, 10, 4, "#1e3a8a", "#93c5fd");
-          r.text("STATION", STATION_X + 3, 8, { color: "#e2e8f0", bold: true, size: 12 });
-          for (let x = 0; x <= STATION_X; x += 20) r.text(`${x} m`, x, -9, { size: 10, color: "#94a3b8" });
-          if (ov.trail) for (const s of strobe.pts) r.rect(s.x - 1, s.y - 1, 2, 2, "rgba(255,255,255,.18)", "rgba(255,255,255,.4)");
+          r.text("STATION", STATION_X + 3, 8.5, { color: "#fff", bold: true, size: 12, bg: "rgba(15,23,42,.6)" });
+          for (let x = 0; x <= STATION_X; x += 20) r.text(`${x} m`, x, -9, { size: 10, color: "#cbd5e1" });
+          if (ov.trail) for (const s of strobe.pts) r.rect(s.x - 1, s.y - 1, 2, 2, "rgba(251,191,36,.18)", "rgba(251,191,36,.5)", 3);
           const P = crate.pos;
           const burning = sim.t < BURN && p.thrust > 0 && arrive === null;
-          if (burning) r.poly([[P.x - 2.5, 1.4], [P.x - 2.5 - p.thrust / 120 - 2, 0], [P.x - 2.5, -1.4]], "#fbbf24");
-          r.rect(P.x - 2.5, -2.5, 5, 5, "#b45309", "#fde68a", 4);
-          r.text(`${CRATE_M} kg`, P.x, 0, { size: 11, color: "#fff", bold: true });
+          cargoPod(r, P.x, P.y, 5, burning ? 0.3 + p.thrust / 500 : 0);
+          r.text(`${CRATE_M} kg`, P.x, P.y, { size: 11, color: "#fff", bold: true });
           const c = P.add(new Vec2(0, 4));
           if (ov.forces && burning) r.arrow(P.add(new Vec2(2.5, 0)), new Vec2(p.thrust, 0), 0.12, COLORS.applied, "F_thrust");
           if (ov.velocity) r.arrow(c, crate.vel, 12, COLORS.velocity, "v");
-          r.textPx(`t = ${f(arrive ?? sim.t, 2)} s`, 14, 18, { align: "left", bold: true, color: "#fff" });
-          r.textPx(burning ? "Thruster ON" : sim.t >= BURN ? "Thruster OFF: coasting" : "", 14, 40, { align: "left", bold: true, color: burning ? "#fbbf24" : "#93c5fd" });
+          r.hud([`t = ${f(arrive ?? sim.t, 2)} s`, burning ? "\u{1F525} Thruster ON" : sim.t >= BURN ? "Thruster OFF: coasting" : ""]);
         },
         readouts: () => [
           { label: "Time", value: `${f(arrive ?? sim.t, 2)} s` },
@@ -212,26 +203,32 @@ const elevatorScale = defineLevel((v) => {
           return { success: false, message: `Read ${f(N, 0)} N. Need ${TARGET_N} N. ${tip}` };
         },
         draw(r, ov) {
-          r.clear("#e5e7eb", "#f3f4f6");
+          wall(r, "#d9d4cb", "brick");
           const y0 = rider.pos.y;
           const vis = r.visible();
-          // shaft + floors
-          r.rect(-3.2, vis.yMin, 6.4, vis.yMax - vis.yMin, "#d1d5db");
+          // shaft with guide rails and cables
+          r.rect(-3.2, vis.yMin, 6.4, vis.yMax - vis.yMin, "#4b5563");
+          r.rect(-3.2, vis.yMin, 0.25, vis.yMax - vis.yMin, "#9ca3af");
+          r.rect(2.95, vis.yMin, 0.25, vis.yMax - vis.yMin, "#9ca3af");
+          for (const cx of [-0.5, 0, 0.5]) r.line(cx, y0 + 3.1, cx, vis.yMax, "#1f2937", 1.5);
           for (let fl = Math.floor(vis.yMin / 3) * 3; fl < vis.yMax; fl += 3) {
-            r.line(-3.2, fl, -4.2, fl, "#6b7280", 2);
-            r.text(`${fl / 3 >= 0 ? "Floor " + (fl / 3 + 1) : "B" + -fl / 3}`, -4.4, fl + 0.3, { size: 10, align: "right", color: "#4b5563" });
+            // floor slab + landing door on each level
+            r.rect(-6.5, fl - 0.3, 3.3, 0.3, "#a8a29e");
+            r.rect(-5.6, fl, 1.6, 2.2, "#94a3b8", "#475569", 3);
+            r.line(-4.8, fl, -4.8, fl + 2.2, "#475569", 1);
+            r.text(`${fl / 3 >= 0 ? "Floor " + (fl / 3 + 1) : "B" + -fl / 3}`, -4.8, fl + 2.6, { size: 10, bold: true, bg: "rgba(255,255,255,.85)" });
           }
-          // car
-          r.rect(-2.5, y0 - 0.3, 5, 3.4, "#fef3c7", "#92400e", 6);
-          r.rect(-2.5, y0 - 0.3, 5, 0.3, "#92400e");
-          // scale
-          r.rect(-0.6, y0, 1.2, 0.15, "#334155");
-          // rider (simple figure)
-          r.rect(-0.25, y0 + 0.15, 0.5, 0.9, "#1e40af", undefined, 4);
-          r.rect(-0.3, y0 + 1.05, 0.6, 0.7, "#0ea5e9", undefined, 6);
-          r.circle(0, y0 + 2.0, 0.24, "#fcd34d", "#92400e");
+          // car: steel frame around a warm wood-panelled cabin
+          r.rect(-2.7, y0 - 0.45, 5.4, 3.75, "#6b7280", undefined, 6);
+          r.rect(-2.5, y0 - 0.3, 5, 3.4, "#e8d5b5", undefined, 4);
+          for (let x = -1.5; x < 2.5; x += 1) r.line(x, y0, x, y0 + 3.0, "rgba(120,80,40,.18)", 1);
+          r.rect(-2.5, y0 - 0.3, 5, 0.3, "#78716c");
+          r.rect(-2.2, y0 + 2.8, 4.4, 0.12, "#fff7d6");
+          // bathroom-style scale + rider
+          r.rect(-0.6, y0, 1.2, 0.15, "#e2e8f0", "#475569", 3);
+          person(r, 0, y0 + 0.15, 1.8, { shirt: "#0ea5e9", pants: "#1e40af" });
           // digital readout
-          r.rect(1.0, y0 + 1.5, 1.3, 0.6, "#111827", undefined, 4);
+          r.rect(1.0, y0 + 1.5, 1.3, 0.6, "#111827", "#475569", 4);
           r.text(`${f(reading, 0)} N`, 1.65, y0 + 1.8, { color: "#34d399", bold: true, size: 13 });
           const c = new Vec2(0, y0 + 1.0);
           if (ov.forces) {
@@ -352,23 +349,54 @@ const skaterPushOff = defineLevel((v) => {
           return { success: false, message: `Ava ${f(tA, 2)} s, partner ${f(tB, 2)} s. Make partner ${d < 0 ? "heavier" : "lighter"}.` };
         },
         draw(r, ov) {
-          r.clear("#e0f2fe", "#f0f9ff");
-          r.rect(-30, -4, 50, 3, "#bae6fd");
-          r.line(-30, -1, 20, -1, "#7dd3fc", 2);
+          wall(r, "#1e3a5f", "panel");
+          // arena lights
+          for (let i = 0; i < 5; i++) {
+            const X = r.w * (0.1 + i * 0.2),
+              Y = r.h * 0.06;
+            const g = r.ctx.createRadialGradient(X, Y, 0, X, Y, r.h * 0.35);
+            g.addColorStop(0, "rgba(255,250,230,.35)");
+            g.addColorStop(1, "rgba(255,250,230,0)");
+            r.ctx.fillStyle = g;
+            r.ctx.fillRect(0, 0, r.w, r.h);
+            r.ctx.fillStyle = "#fffbe8";
+            r.ctx.fillRect(X - 14, Y - 3, 28, 6);
+          }
+          r.ctx.fillStyle = "rgba(15,23,42,.55)";
+          r.ctx.fillRect(r.w * 0.38, r.h * 0.16, r.w * 0.24, r.h * 0.09);
+          r.textPx("CITY ICE ARENA", r.w / 2, r.h * 0.205, { size: Math.max(11, r.w * 0.016), bold: true, color: "#bae6fd" });
+          // stands: tiered seating with a soft, out-of-focus crowd
+          const vis = r.visible();
+          for (let row = 0; row < 5; row++) {
+            const y = 0.25 + row * 0.85;
+            r.rect(vis.xMin - 1, y, vis.xMax - vis.xMin + 2, 0.85, row % 2 ? "#27466e" : "#2c4f7c");
+            for (let x = Math.floor(vis.xMin) + (row % 2) * 0.35; x < vis.xMax; x += 0.7) {
+              const k = Math.abs(Math.floor(x * 13.7 + row * 5)) % 7;
+              if (k === 3) continue;
+              const hue = ["#c2847a", "#d4b483", "#8fa9c9", "#a89bc4", "#86b5a0", "#d39fb4", "#c9a27e"][k];
+              r.ctx.globalAlpha = 0.75;
+              r.circle(x, y + 0.42, 0.17, hue);
+              r.ctx.globalAlpha = 1;
+            }
+          }
+          // rink boards and ice
+          r.rect(vis.xMin - 1, -1, vis.xMax - vis.xMin + 2, 1.1, "#f8fafc");
+          r.rect(vis.xMin - 1, 0.0, vis.xMax - vis.xMin + 2, 0.12, "#1d4ed8");
+          r.rect(vis.xMin - 1, -0.95, vis.xMax - vis.xMin + 2, 0.15, "#fde047");
+          ground(r, -1, "ice");
+          r.line(vis.xMin, -2.0, vis.xMax, -2.0, "rgba(220,38,38,.55)", 3);
           r.flag(AVA_LINE, -1, 3, COLORS.applied, "Ava's mark");
           r.flag(BEN_LINE, -1, 3, COLORS.normal, "partner's mark");
           r.ruler(-22, 14, -3, 2);
-          const skater = (b: Body, color: string, name: string) => {
+          const pushing = sim.t < PUSH_T;
+          const skater = (b: Body, color: string, name: string, facing: 1 | -1) => {
             const s = 1.8 * Math.sqrt(b.mass / 60);
             const x = b.pos.x;
-            r.rect(x - 0.25 * s, -1, 0.5 * s, 1.1 * s, color, undefined, 4);
-            r.circle(x, -1 + 1.1 * s + 0.3 * s, 0.28 * s, "#fcd34d", "#92400e");
-            r.line(x - 0.4, -1, x + 0.4, -1, "#111827", 3);
-            r.text(`${name} ${f(b.mass, 0)} kg`, x, -1 + 1.1 * s + 0.95 * s, { size: 11, bold: true, bg: "rgba(255,255,255,.85)" });
+            person(r, x, -1, s, { shirt: color, skates: true, facing, pose: pushing ? "push" : b.vel.len() > 0.01 ? "glide" : "stand" });
+            r.text(`${name} ${f(b.mass, 0)} kg`, x, -1 + s + 0.35, { size: 11, bold: true, bg: "rgba(255,255,255,.9)" });
           };
-          skater(ava, COLORS.applied, "Ava");
-          skater(ben, COLORS.normal, "Partner");
-          const pushing = sim.t < PUSH_T;
+          skater(ava, COLORS.applied, "Ava", 1);
+          skater(ben, COLORS.normal, "Partner", -1);
           if (ov.forces && pushing) {
             r.arrow(new Vec2(ava.pos.x - 0.5, 0.6), new Vec2(-PUSH, 0), 0.5, COLORS.applied, `${PUSH} N`);
             r.arrow(new Vec2(ben.pos.x + 0.5, 0.6), new Vec2(PUSH, 0), 0.5, COLORS.normal, `${PUSH} N`);
@@ -470,24 +498,31 @@ const couplingStrength = defineLevel((v) => {
           return { success: true, message: `Max pull! Rope tension ${f(T, 0)} N of ${T_MAX} N, while you pull with ${f(p.F, 0)} N.` };
         },
         draw(r, ov) {
-          r.clear("#fef3c7", "#fffbeb");
-          r.rect(-30, -2, 60, 2, "#a3a3a3");
-          for (let x = -30; x < 30; x += 1.5) r.rect(x, -0.35, 0.8, 0.2, "#78716c");
+          sky(r, r.sy(0), "day");
+          hillsScreen(r, r.sy(0), Math.min(r.h * 0.3, r.sy(0) * 0.5));
+          ground(r, 0, "dirt");
+          const vis = r.visible();
+          for (let x = Math.floor(vis.xMin / 1.5) * 1.5; x < vis.xMax; x += 1.5) r.rect(x, -0.35, 0.8, 0.12, "rgba(90,60,30,.35)", undefined, 2);
           const cart = (b: Body, w: number, color: string, label: string) => {
-            r.rect(b.pos.x - w / 2, 0.3, w, 1.6, color, COLORS.ink, 4);
-            r.circle(b.pos.x - w / 3, 0.3, 0.3, "#1f2937");
-            r.circle(b.pos.x + w / 3, 0.3, 0.3, "#1f2937");
-            r.text(label, b.pos.x, 1.1, { size: 11, bold: true, color: "#fff" });
+            // wooden farm wagon
+            r.rect(b.pos.x - w / 2, 0.55, w, 1.35, color, COLORS.ink, 4);
+            r.rect(b.pos.x - w / 2, 1.75, w, 0.15, "#7c4a1e", undefined, 2);
+            for (let i = 1; i < 3; i++) r.line(b.pos.x - w / 2 + (w * i) / 3, 0.6, b.pos.x - w / 2 + (w * i) / 3, 1.7, "rgba(0,0,0,.15)", 1);
+            tyre(r, b.pos.x - w / 3, 0.35, 0.35, b.pos.x / 0.35);
+            tyre(r, b.pos.x + w / 3, 0.35, 0.35, b.pos.x / 0.35);
+            r.text(label, b.pos.x, 1.2, { size: 11, bold: true, color: "#fff" });
           };
           cart(front, 3.4, "#0072B2", `${M1} kg`);
           cart(back, 3, "#009E73", `${M2} kg`);
           // tractor
           const tx = front.pos.x + 3.4;
-          r.rect(tx - 0.8, 0.3, 2.6, 1.4, "#D55E00", COLORS.ink, 4);
-          r.rect(tx + 0.2, 1.7, 1.2, 1.1, "#D55E00", COLORS.ink, 3);
-          r.circle(tx - 0.2, 0.5, 0.5, "#1f2937");
-          r.circle(tx + 1.4, 0.4, 0.4, "#1f2937");
-          r.line(front.pos.x + 1.7, 1.0, tx - 0.8, 1.0, COLORS.ink, 3);
+          r.rect(tx - 0.8, 0.45, 2.6, 1.25, "#D55E00", COLORS.ink, 5);
+          r.rect(tx + 0.1, 1.7, 1.3, 1.15, "#D55E00", COLORS.ink, 4);
+          r.rect(tx + 0.25, 1.85, 1.0, 0.8, "#2c3e57", undefined, 3);
+          r.rect(tx + 1.4, 1.7, 0.12, 0.7, "#334155");
+          tyre(r, tx - 0.2, 0.55, 0.55, front.pos.x / 0.55);
+          tyre(r, tx + 1.45, 0.38, 0.38, front.pos.x / 0.38);
+          r.line(front.pos.x + 1.7, 1.0, tx - 0.8, 1.0, "#334155", 3);
           // rope
           const rx0 = back.pos.x + 1.5,
             rx1 = front.pos.x - 1.7;
@@ -495,7 +530,7 @@ const couplingStrength = defineLevel((v) => {
           else {
             r.line(rx0, 1.0, rx0 + 0.8, 0.6, "#92400e", 3);
             r.line(rx1, 1.0, rx1 - 0.8, 0.6, "#92400e", 3);
-            r.text("SNAP!", (rx0 + rx1) / 2, 2.4, { size: 14, bold: true, color: "#b91c1c" });
+            r.text("SNAP!", (rx0 + rx1) / 2, 2.4, { size: 14, bold: true, color: "#fff", bg: "#b91c1c" });
           }
           if (ov.forces) {
             r.arrow(new Vec2(tx + 2, 3.3), new Vec2(p.F, 0), 60 / FMAX, COLORS.applied, "F");
@@ -601,23 +636,32 @@ const pulleyDrop = defineLevel((v) => {
           return { success: false, message: `Reached the edge at ${f(tEdge, 2)} s. ${d > 0 ? "Add mass." : "Less mass."}` };
         },
         draw(r, ov) {
-          r.clear("#f1f5f9", "#f8fafc");
+          wall(r, "#e2e8f0", "tile");
           const top = 0.7;
-          r.rect(-L - 0.5, top - 0.06, L + 0.5, 0.06, "#92400e");
-          r.rect(-L - 0.45, -L - 0.5, 0.05, L + 1.14, "#78350f");
-          r.rect(-L - 0.5, -L - 0.5, L + 1, 0.04, "#a8a29e");
-          // pulley
-          r.circle(0.03, top + 0.02, 0.05, "#9ca3af", COLORS.ink);
+          // floor + lab table
+          ground(r, -L - 0.5, "concrete");
+          r.rect(-L - 0.45, -L - 0.5, 0.05, L + 1.14, "#7c4a1e");
+          r.rect(-0.16, -L - 0.5, 0.05, L + 1.14, "#7c4a1e");
+          plank(r, -L / 2 - 0.25, top - 0.03, L + 0.5, 0.06, 0, "#a86b32");
+          // pulley clamped to the table edge
+          r.rect(-0.02, top - 0.08, 0.06, 0.1, "#64748b", undefined, 2);
+          r.circle(0.03, top + 0.02, 0.05, "#cbd5e1", COLORS.ink);
+          r.circle(0.03, top + 0.02, 0.015, "#475569");
           const cx = -L - 0.3 + s;
-          r.rect(cx - 0.12, top, 0.24, 0.14, "#0072B2", COLORS.ink, 3);
-          r.text(`${f(M, 1)} kg`, cx, top + 0.07, { size: 10, bold: true, color: "#fff" });
-          r.line(cx + 0.12, top + 0.07, 0.03, top + 0.07, "#111827", 1.5);
+          // cart with little wheels
+          r.rect(cx - 0.12, top + 0.02, 0.24, 0.12, "#0072B2", COLORS.ink, 3);
+          r.circle(cx - 0.07, top + 0.015, 0.018, "#1f2937");
+          r.circle(cx + 0.07, top + 0.015, 0.018, "#1f2937");
+          r.text(`${f(M, 1)} kg`, cx, top + 0.08, { size: 10, bold: true, color: "#fff" });
+          r.line(cx + 0.12, top + 0.07, 0.03, top + 0.07, "#334155", 1.5);
           const wy = top - 0.25 - s;
-          r.line(0.08, top + 0.02, 0.08, wy + 0.08, "#111827", 1.5);
-          r.rect(0.03, wy - 0.06, 0.1, 0.14, "#D55E00", COLORS.ink, 2);
-          r.text(`${p.m} g`, 0.2, wy, { size: 10, bold: true, align: "left" });
+          r.line(0.08, top + 0.02, 0.08, wy + 0.08, "#334155", 1.5);
+          // hanging slotted mass
+          r.rect(0.03, wy - 0.06, 0.1, 0.14, "#d6a23a", "#78350f", 2);
+          r.line(0.03, wy + 0.01, 0.13, wy + 0.01, "rgba(0,0,0,.25)", 1);
+          r.text(`${p.m} g`, 0.2, wy, { size: 10, bold: true, align: "left", bg: "rgba(255,255,255,.9)" });
           r.line(0, top, 0, top + 0.25, "#e63946", 2, [3, 3]);
-          r.text("edge", 0, top + 0.3, { size: 10, color: "#b91c1c", bold: true });
+          r.text("edge", 0, top + 0.3, { size: 10, color: "#b91c1c", bold: true, bg: "rgba(255,255,255,.9)" });
           if (ov.forces) {
             const ppu = 0.12 / (m * G);
             r.arrow(new Vec2(0.08, wy - 0.06), new Vec2(0, -m * G), ppu * r.scale, COLORS.gravity, "mg");

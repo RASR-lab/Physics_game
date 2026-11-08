@@ -3,6 +3,9 @@ import { COLORS, gravity } from "../physics/forces";
 import { maxHeight } from "../physics/analytic";
 import { Vec2, rad } from "../physics/vec2";
 import type { Sim } from "./types";
+import { ground, lawn, mesasScreen, sky, treeTop, wall, water } from "../render/art/backdrops";
+import { ball, boatTop, cactus, crate as crateArt, drone as droneArt, metalBar, personTop, plank } from "../render/art/props";
+import { noisePattern, patternRect } from "../render/art/core";
 import { defineLevel, f, n, snap, Strobe } from "./util";
 
 /* ------------------------------------------------------------------ */
@@ -94,22 +97,33 @@ const droneDelivery = defineLevel((v) => {
           return { success: false, message: `Landed at (${f(drone.pos.x)}, ${f(drone.pos.y)}). Target: (${TX}, ${TY}).` };
         },
         draw(r, ov) {
-          r.clear("#e8f5e9", "#f1f8e9");
+          lawn(r);
+          for (const [tx, ty, tr] of [
+            [8, 24, 2.6],
+            [44, 12, 3],
+            [48, 30, 2.2],
+            [6, 44, 2.6],
+            [20, 6, 2],
+            [52, 50, 2.4],
+          ] as [number, number, number][])
+            treeTop(r, tx, ty, tr);
           for (let x = 0; x <= 50; x += 10) {
-            r.line(x, 0, x, 50, "#c8e6c9", 1);
-            r.text(`${x}`, x, -2, { size: 10, color: "#4b5563" });
+            r.line(x, 0, x, 50, "rgba(255,255,255,.45)", 1);
+            r.text(`${x}`, x, -2, { size: 10, color: "#1f3b2a", bold: true });
           }
           for (let y = 0; y <= 50; y += 10) {
-            r.line(0, y, 50, y, "#c8e6c9", 1);
-            r.text(`${y}`, -2.5, y, { size: 10, color: "#4b5563" });
+            r.line(0, y, 50, y, "rgba(255,255,255,.45)", 1);
+            r.text(`${y}`, -2.5, y, { size: 10, color: "#1f3b2a", bold: true });
           }
-          r.text("east (m) →", 46, -4, { size: 11, color: "#374151" });
-          r.text("north ↑", -3.5, 49, { size: 11, color: "#374151", align: "left" });
-          // rooftop
-          r.rect(TARGET.x - 4, TARGET.y - 3, 8, 6, "#d6d3d1", "#57534e", 4);
-          r.circle(TARGET.x, TARGET.y, 1.5, "rgba(0,158,115,.35)", COLORS.normal);
-          r.text("H", TARGET.x, TARGET.y, { bold: true, color: COLORS.normal, size: 14 });
-          r.rect(-2, -1, 4, 2, "#94a3b8", "#475569", 3);
+          r.text("east (m) →", 46, -4, { size: 11, bold: true, bg: "rgba(255,255,255,.85)" });
+          r.text("north ↑", -3.5, 49, { size: 11, bold: true, align: "left", bg: "rgba(255,255,255,.85)" });
+          // rooftop helipad
+          r.rect(TARGET.x - 4, TARGET.y - 3, 8, 6, "#cbd5e1", "#64748b", 4);
+          r.circle(TARGET.x, TARGET.y, 2.1, "#334155");
+          r.circle(TARGET.x, TARGET.y, 1.7, "rgba(0,0,0,0)", "#facc15");
+          r.text("H", TARGET.x, TARGET.y, { bold: true, color: "#facc15", size: Math.max(12, r.scale * 1.8) });
+          // launch pad
+          r.rect(-2, -1, 4, 2, "#e2e8f0", "#64748b", 3);
           if (ov.trail) r.path(trail, "rgba(213,94,0,.7)", 2, [6, 4]);
           // components (always shown once flying — this is the lesson)
           const P = drone.pos;
@@ -119,9 +133,7 @@ const droneDelivery = defineLevel((v) => {
             r.text(`dₓ = ${f(P.x)} m`, P.x / 2, 2, { size: 11, color: "#fff", bg: COLORS.applied, bold: true });
             r.text(`d_y = ${f(P.y)} m`, P.x + 1, P.y / 2, { size: 11, color: "#fff", bg: COLORS.gravity, bold: true, align: "left" });
           }
-          // drone
-          r.rect(P.x - 1.2, P.y - 0.4, 2.4, 0.8, "#334155", undefined, 3);
-          for (const dx of [-1.6, 1.6]) r.circle(P.x + dx, P.y + 0.5, 0.9, "rgba(148,163,184,.6)", "#334155");
+          droneArt(r, P.x, P.y, 2.2, !done || sim.t === 0);
           if (ov.velocity && !done) r.arrow(P, drone.vel, 6, COLORS.velocity, "v");
           r.hud([`t = ${f(sim.t, 2)} s`, `distance flown = ${f(P.len())} m`]);
         },
@@ -228,23 +240,29 @@ const riverCrossing = defineLevel((v) => {
           return { success: false, message: `${f(Math.abs(x))} m ${x > 0 ? "east" : "west"} of the pier. Aim ${x > 0 ? "more" : "less"} upstream.` };
         },
         draw(r, ov) {
-          r.clear("#cfe8c9", "#cfe8c9");
+          lawn(r, "#a7d49b");
+          water(r, 0, RIVER_W, sim.t, CURRENT);
           const vis = r.visible();
-          r.rect(vis.xMin, 0, vis.xMax - vis.xMin, RIVER_W, "#7cc3e8");
-          // current stripes (animated)
-          for (let y = 6; y < RIVER_W; y += 12)
-            for (let x = -60; x < 90; x += 18) {
-              const xx = ((x + sim.t * CURRENT + 60) % 150) - 60;
-              r.line(xx, y, xx + 6, y, "rgba(255,255,255,.7)", 2);
-            }
-          r.rect(vis.xMin, RIVER_W, vis.xMax - vis.xMin, 10, "#a7d49b");
-          r.rect(vis.xMin, -10, vis.xMax - vis.xMin, 10, "#a7d49b");
-          r.rect(-3, RIVER_W, 6, 4, "#8d6e63", "#4e342e");
-          r.text("PIER", 0, RIVER_W + 6, { bold: true, size: 12 });
-          r.rect(-3, -4, 6, 4, "#8d6e63", "#4e342e");
-          r.text(`current ${f(CURRENT, 1)} m/s →`, vis.xMin + 14, RIVER_W - 4, { size: 12, color: "#0c4a6e", bold: true });
+          for (const [tx, ty] of [
+            [-40, RIVER_W + 10],
+            [-22, RIVER_W + 14],
+            [25, RIVER_W + 12],
+            [48, RIVER_W + 9],
+            [-35, -8],
+            [30, -7],
+            [52, -9],
+          ])
+            if (tx > vis.xMin - 5 && tx < vis.xMax + 5) treeTop(r, tx, ty, 3);
+          const pier = (y: number) => {
+            r.rect(-3, y, 6, 4, "#a47148", "#5b3a1f", 2);
+            for (let x = -2.25; x < 3; x += 1.5) r.line(x, y, x, y + 4, "rgba(70,40,15,.45)", 1);
+          };
+          pier(RIVER_W);
+          r.text("PIER", 0, RIVER_W + 6, { bold: true, size: 12, bg: "rgba(255,255,255,.9)" });
+          pier(-4);
+          r.text(`current ${f(CURRENT, 1)} m/s →`, vis.xMin + 14, RIVER_W - 4, { size: 12, color: "#fff", bold: true, bg: COLORS.current });
           if (ov.trail) r.path(trail, "rgba(213,94,0,.8)", 2.5, [6, 4]);
-          r.rotRect(ferry.pos.x, ferry.pos.y, 9, 3.6, rad(p.heading), "#f8fafc");
+          boatTop(r, ferry.pos.x, ferry.pos.y, 9, 3.6, rad(p.heading));
           const P = ferry.pos;
           if (ov.velocity && !done) {
             r.arrow(P, vBoat, 16, COLORS.applied, "v_boat");
@@ -376,24 +394,53 @@ const canyonDrop = defineLevel((v) => {
           return { success: false, message: `Landed at ${f(x)} m. ${x < ZONE[0] ? "A bit farther." : "Too far."}` };
         },
         draw(r, ov) {
-          r.clear("#ffe9c7", "#fff7ea");
+          sky(r, r.sy(0), "desert");
+          mesasScreen(r, r.sy(0), Math.min(r.h * 0.22, r.sy(0) * 0.5));
           const vis = r.visible();
-          r.rect(vis.xMin, FLOOR - 5, NEAR_EDGE - vis.xMin, 5 - FLOOR, "#c2864f", "#8a5a2b");
-          r.rect(NEAR_EDGE, FLOOR - 5, FAR_EDGE - NEAR_EDGE, 5, "#8a5a2b");
-          r.rect(FAR_EDGE, FLOOR - 5, vis.xMax - FAR_EDGE + 5, 5 - FLOOR, "#c2864f", "#8a5a2b");
+          const rock = (x0: number, x1: number, yTop: number, yBot: number, dark = 0) => {
+            patternRect(r, x0, yBot, x1 - x0, yTop - yBot, noisePattern(r.ctx, dark ? "#9a6438" : "#c88a55", { dark: 0.12 }));
+            const bands = ["rgba(255,220,180,.18)", "rgba(120,60,20,.14)", "rgba(255,200,150,.1)", "rgba(90,40,10,.12)"];
+            let i = 0;
+            for (let y = yTop; y > yBot; y -= 2.6) {
+              const hgt = Math.min(2.6, y - yBot);
+              r.rect(x0, y - hgt, x1 - x0, hgt, bands[i++ % bands.length]);
+            }
+          };
+          rock(vis.xMin - 1, NEAR_EDGE, 0, FLOOR - 5);
+          rock(FAR_EDGE, vis.xMax + 5, 0, FLOOR - 5);
+          // far canyon wall (in shade) and the floor, with a dry stream bed
+          rock(NEAR_EDGE, FAR_EDGE, -3, FLOOR - 5, 1);
+          r.poly(
+            [
+              [NEAR_EDGE, -3],
+              [NEAR_EDGE + 6, 0],
+              [FAR_EDGE - 9, -1.5],
+              [FAR_EDGE, 0],
+              [FAR_EDGE, -3],
+            ],
+            "#a86f42",
+          );
+          r.rect(NEAR_EDGE, FLOOR - 5, FAR_EDGE - NEAR_EDGE, 25 + 5, "rgba(40,20,10,.22)");
+          r.rect(NEAR_EDGE, FLOOR - 5, FAR_EDGE - NEAR_EDGE, 5, "#8a5a33");
+          r.rect(vis.xMin - 1, -0.35, NEAR_EDGE - vis.xMin + 1, 0.35, "#e0a46c");
+          r.rect(FAR_EDGE, -0.35, vis.xMax - FAR_EDGE + 5, 0.35, "#e0a46c");
+          cactus(r, -2.5, 0, 2.6);
+          cactus(r, ZONE[1] + 6, 0, 3.2);
+          cactus(r, ZONE[1] + 10, 0, 2.2);
           r.rect(ZONE[0], -0.6, ZONE[1] - ZONE[0], 0.6, COLORS.normal);
           r.flag(ZONE[0] + 3, 0, 3.5, COLORS.normal, "DROP ZONE");
-          r.ruler(0, ZONE[1] + 10, -1.6, 10);
+          r.ruler(0, ZONE[1] + 10, -1.6, 10, "m", "#3f2a1a");
           // launcher
           const dir = Vec2.fromPolar(1, p.angle);
-          r.line(0, 0, dir.x * 2.4, dir.y * 2.4, "#374151", 8);
-          r.circle(0, 0, 1, "#374151");
+          metalBar(r, new Vec2(0, 0), new Vec2(dir.x * 2.6, dir.y * 2.6), 0.75, "#475569");
+          r.circle(0, 0, 1.05, "#334155");
+          r.circle(0, 0, 0.45, "#94a3b8");
           if (ov.trail) {
             r.path(trail, "rgba(213,94,0,.5)", 1.5, [4, 4]);
-            for (const s of strobe.pts) r.rect(s.x - 0.4, s.y - 0.4, 0.8, 0.8, "rgba(120,72,30,.35)");
+            for (const s of strobe.pts) r.rect(s.x - 0.4, s.y + 0.2, 0.8, 0.8, "rgba(255,255,255,.45)", "rgba(120,72,30,.6)", 2);
           }
           const P = crate.pos;
-          r.rect(P.x - 0.6, P.y, 1.2, 1.2, "#b45309", "#78350f", 2);
+          crateArt(r, P.x, P.y + 0.6, 1.2, 1.2, 0);
           const c = P.add(new Vec2(0, 0.6));
           if (ov.velocity && !done) {
             r.arrow(c, crate.vel, 3.5, COLORS.velocity, "v");
@@ -512,22 +559,34 @@ const hikingDetour = defineLevel((v) => {
           return { success: false, message: `Ended at (${f(end.x)}, ${f(end.y)}), ${f(miss, 1)} m from camp at (${CX}, ${CY}).` };
         },
         draw(r, ov) {
-          r.clear("#ecfccb", "#f7fee7");
+          lawn(r, "#a9cf8e");
           const vis = r.visible();
-          for (let x = Math.ceil(vis.xMin / 10) * 10; x < vis.xMax; x += 10) r.line(x, vis.yMin, x, vis.yMax, "#d9f99d", 1);
-          for (let y = Math.ceil(vis.yMin / 10) * 10; y < vis.yMax; y += 10) r.line(vis.xMin, y, vis.xMax, y, "#d9f99d", 1);
-          r.text("N ↑", vis.xMin + 3, vis.yMax - 3, { size: 12, bold: true });
+          // forest patches (seeded so they stay put)
+          for (let i = 0; i < 26; i++) {
+            const tx = vis.xMin + ((i * 37.3) % 1) * 0 + ((i * 53.7) % (vis.xMax - vis.xMin));
+            const ty = vis.yMin + ((i * 29.1) % (vis.yMax - vis.yMin));
+            treeTop(r, tx, ty, 2.2 + (i % 3));
+          }
+          for (let x = Math.ceil(vis.xMin / 10) * 10; x < vis.xMax; x += 10) r.line(x, vis.yMin, x, vis.yMax, "rgba(255,255,255,.4)", 1);
+          for (let y = Math.ceil(vis.yMin / 10) * 10; y < vis.yMax; y += 10) r.line(vis.xMin, y, vis.xMax, y, "rgba(255,255,255,.4)", 1);
+          r.text("N ↑", vis.xMax - 4, vis.yMax - 4, { size: 12, bold: true, bg: "rgba(255,255,255,.9)" });
+          // trailhead sign
           r.rect(-2, -2, 4, 4, "#a16207", "#713f12", 3);
-          r.text("trailhead", 0, -5, { size: 11, bold: true });
+          r.rect(-1.4, -0.4, 2.8, 0.8, "#fde68a", undefined, 2);
+          r.text("trailhead", 0, -5, { size: 11, bold: true, bg: "rgba(255,255,255,.9)" });
+          // camp: clearing + tent
+          r.circle(CX, CY, 4.5, "#d9c89a");
           r.poly([[CX - 3, CY - 2], [CX + 3, CY - 2], [CX, CY + 3]], "#f97316", "#7c2d12");
-          r.circle(CX, CY, 2, "rgba(0,158,115,.25)", COLORS.normal);
-          r.text("camp", CX, CY + 5, { size: 11, bold: true });
-          r.line(0, 0, CX, CY, "rgba(17,24,39,.35)", 1.5, [4, 6]);
+          r.poly([[CX - 0.7, CY - 2], [CX + 0.7, CY - 2], [CX, CY + 0.6]], "#7c2d12");
+          r.circle(CX, CY, 2, "rgba(0,158,115,.18)", COLORS.normal);
+          r.text("camp", CX, CY + 5, { size: 11, bold: true, bg: "rgba(255,255,255,.9)" });
+          r.line(0, 0, CX, CY, "rgba(17,24,39,.45)", 1.5, [4, 6]);
           // leg 1 (pink) and leg 2 (purple)
           r.arrow(Vec2.zero(), turn, r.scale, COLORS.applied, "leg 1", 2.5);
           if (sim.t >= t1 && p.dist > 0) r.arrow(turn, Vec2.fromPolar(p.dist, p.angle), r.scale, COLORS.spring, "leg 2", 2.5);
-          if (ov.trail) r.path(trail, "rgba(213,94,0,.7)", 2, [5, 4]);
-          r.circle(pos.x, pos.y, 1.1, "#1d4ed8", "#fff");
+          if (ov.trail) r.path(trail, "rgba(213,94,0,.8)", 2.5, [5, 4]);
+          const head = trail.length > 1 ? trail[trail.length - 1].sub(trail[trail.length - 2]) : new Vec2(1, 0);
+          personTop(r, pos.x, pos.y, 2.6, Math.atan2(head.y, head.x) + Math.PI / 2, "#1d4ed8");
           r.hud([`t = ${f(sim.t, 1)} s`, `position (${f(pos.x)}, ${f(pos.y)}) m`]);
         },
         readouts: () => [
@@ -633,16 +692,28 @@ const offTheTable = defineLevel((v) => {
           return { success: false, message: `Landed at ${f(x, 2)} m, ${x < D ? "short of" : "past"} the cup. ${x < D ? "Roll faster." : "Roll slower."}` };
         },
         draw(r, ov) {
-          r.clear("#fef9c3", "#fefce8");
-          r.rect(-3, -0.15, 8, 0.15, "#a8a29e");
-          r.rect(-0.9, H - 0.05, 0.9, 0.05, "#92400e");
-          r.rect(-0.8, 0, 0.06, H - 0.05, "#78350f");
-          r.rect(-0.12, 0, 0.06, H - 0.05, "#78350f");
-          r.rect(D - CUP, 0, 2 * CUP, 0.09, "#e63946", "#7f1d1d", 2);
-          r.ruler(0, D + 0.5, -0.08, 0.5, "m");
+          wall(r, "#f1e6d0", "wallpaper");
+          ground(r, 0, "wood");
+          // table: wooden top on two legs
+          r.rect(-0.8, 0, 0.06, H - 0.05, "#7c4a1e");
+          r.rect(-0.12, 0, 0.06, H - 0.05, "#7c4a1e");
+          plank(r, -0.45, H - 0.025, 0.95, 0.05, 0, "#a86b32");
+          // paper cup on the floor
+          r.poly(
+            [
+              [D - CUP, 0],
+              [D + CUP, 0],
+              [D + CUP * 1.25, 0.1],
+              [D - CUP * 1.25, 0.1],
+            ],
+            "#e63946",
+            "#7f1d1d",
+          );
+          r.rect(D - CUP * 1.25, 0.095, CUP * 2.5, 0.012, "#f8fafc");
+          r.ruler(0, D + 0.5, -0.08, 0.5, "m", "#475569");
           if (ov.trail) for (const s of strobe.pts) r.circle(s.x, s.y, 0.015, "rgba(213,94,0,.55)", undefined, 3);
-          r.circle(dropped.pos.x, dropped.pos.y + 0.015, 0.015, "#0072B2", "#fff", 5);
-          r.circle(rolled.pos.x, rolled.pos.y + 0.015, 0.015, "#D55E00", "#fff", 5);
+          ball(r, dropped.pos.x, dropped.pos.y + 0.015, 0.015, "#0072B2", "plain", 6);
+          ball(r, rolled.pos.x, rolled.pos.y + 0.015, 0.015, "#D55E00", "plain", 6);
           if (ov.velocity && landX === null) r.arrow(rolled.pos, rolled.vel, 25, COLORS.velocity, "v");
           if (ov.forces && landX === null) r.arrow(rolled.pos, new Vec2(0, -0.02 * G), 300, COLORS.gravity, "F_g");
           r.hud([`t = ${f(tLand ?? sim.t, 3)} s`, `rolled: y = ${f(rolled.pos.y, 2)} m · dropped: y = ${f(dropped.pos.y, 2)} m`]);

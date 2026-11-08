@@ -2,6 +2,8 @@ import { Body, G, crossFraction, stepBodies } from "../physics/core";
 import { COLORS, gravity, spring } from "../physics/forces";
 import { Vec2, rad } from "../physics/vec2";
 import type { Sim } from "./types";
+import { ground, sky, skylineScreen, wall } from "../render/art/backdrops";
+import { ball, coil, metalBar, tyre } from "../render/art/props";
 import type { Renderer } from "../render/renderer";
 import { bestOnGrid, defineLevel, f, n, snap } from "./util";
 
@@ -36,7 +38,8 @@ function zigzag(r: Renderer, a: Vec2, b: Vec2, coils = 12, width = 0.05, color =
   const pts: Vec2[] = [a];
   for (let i = 1; i < coils * 2; i++) pts.push(a.add(d.scale(i / (coils * 2))).add(w.scale(i % 2 ? width : -width)));
   pts.push(b);
-  r.path(pts, color, 2.5);
+  void pts;
+  coil(r, a, b, coils, width * 2, color);
 }
 
 /* ------------------------------------------------------------------ */
@@ -125,19 +128,28 @@ const grandfatherClock = defineLevel((v) => {
           };
         },
         draw(r, ov) {
-          r.clear("#fef3c7", "#fffbeb");
-          // clock case
-          r.rect(-1.0, -2.2, 2.0, 2.4, "#7c2d12", COLORS.ink, 8);
-          r.rect(-0.9, -2.1, 1.8, 2.2, "#fde68a");
-          r.rect(-0.2, 0, 0.4, 0.12, "#57534e");
+          wall(r, "#e7d7bd", "wallpaper");
+          // clock case: dark walnut with a glass door
+          r.rect(-1.0, -2.2, 2.0, 2.4, "#6b3a1f", "#3b1d0c", 8);
+          r.rect(-0.9, -2.1, 1.8, 2.2, "#f3e3bd", "#8a5a33", 4);
+          r.poly(
+            [
+              [-0.9, -0.6],
+              [-0.9, -0.2],
+              [-0.3, 0.1],
+              [0.1, 0.1],
+            ],
+            "rgba(255,255,255,.35)",
+          );
+          r.rect(-0.2, 0, 0.4, 0.12, "#b7791f", "#78350f", 2);
           // target length mark
           r.line(-0.85, -lEx, -0.65, -lEx, "#9ca3af", 1.5, [3, 3]);
-          r.vruler(-2, 0, 0.82, 0.5);
+          r.vruler(-2, 0, 0.82, 0.5, "m", "#3f2a1a");
           const bob = new Vec2(L * Math.sin(th), -L * Math.cos(th));
-          r.line(0, 0, bob.x, bob.y, "#57534e", 3);
+          metalBar(r, new Vec2(0, 0), bob, 0.022, "#c8a24a");
           const br = 0.06 + 0.012 * m;
-          r.circle(bob.x, bob.y, br, "#d97706", "#78350f");
-          r.text(`${p.mass} kg`, bob.x, bob.y - br - 0.07, { size: 10, bold: true });
+          ball(r, bob.x, bob.y, br, "#d6a23a", "brass");
+          r.text(`${p.mass} kg`, bob.x, bob.y - br - 0.08, { size: 10, bold: true, bg: "rgba(255,255,255,.85)" });
           if (ov.trail) {
             const ctx = r.ctx;
             ctx.beginPath();
@@ -245,23 +257,23 @@ const smoothRide = defineLevel((v) => {
           return { success: false, message: `Bouncing at ${f(fr, 3)} Hz. ${fr < TARGET_F ? "Too floaty: stiffer spring." : "Too jittery: softer spring."}` };
         },
         draw(r, ov) {
-          r.clear("#e0f2fe", "#f8fafc");
-          r.rect(-3, -0.2, 6, 0.2, "#6b7280");
-          // wheel
-          r.circle(0, 0.25, 0.25, "#1f2937", "#111");
-          r.circle(0, 0.25, 0.1, "#9ca3af");
+          sky(r, r.sy(0), "day");
+          skylineScreen(r, r.sy(0), r.sy(0) * 0.55);
+          ground(r, 0, "asphalt");
+          tyre(r, 0, 0.25, 0.25);
           const top = new Vec2(0, body.pos.y);
           r.line(0, 0.25, 0, Math.min(0.55, body.pos.y), "#475569", 6); // strut from the axle
           zigzag(r, new Vec2(0, Math.min(0.55, body.pos.y)), top, 7, 0.14);
           // equilibrium line
-          r.line(-1.3, eq + 0.12, 1.3, eq + 0.12, "#9ca3af", 1, [5, 4]);
-          r.text("rest", 1.25, eq + 0.17, { size: 10, color: "#6b7280", align: "right" });
+          r.line(-1.3, eq + 0.12, 1.3, eq + 0.12, "#6b7280", 1, [5, 4]);
+          r.text("rest", 1.25, eq + 0.17, { size: 10, align: "right", bold: true, bg: "rgba(255,255,255,.85)" });
           // car body (one corner)
           r.rect(-1.2, body.pos.y, 2.4, 0.3, "#e4572e", COLORS.ink, 6);
           r.rect(-0.7, body.pos.y + 0.3, 1.2, 0.3, "#e4572e", COLORS.ink, 6);
-          r.rect(-0.6, body.pos.y + 0.36, 0.45, 0.2, "#cfe8ff");
-          r.rect(-0.05, body.pos.y + 0.36, 0.45, 0.2, "#cfe8ff");
-          r.text(`${CAR_CORNER} kg`, 0, body.pos.y + 0.15, { size: 11, bold: true, color: "#fff" });
+          r.rect(-0.6, body.pos.y + 0.36, 0.45, 0.2, "#2c3e57");
+          r.rect(-0.05, body.pos.y + 0.36, 0.45, 0.2, "#2c3e57");
+          r.rect(-1.15, body.pos.y + 0.22, 2.3, 0.03, "rgba(255,255,255,.35)");
+          r.text(`${CAR_CORNER} kg`, 0, body.pos.y + 0.12, { size: 11, bold: true, color: "#fff" });
           const c = new Vec2(0.9, body.pos.y + 0.15);
           if (ov.forces) {
             r.arrow(c, new Vec2(0, -CAR_CORNER * G), 0.012, COLORS.gravity, "mg");
@@ -368,17 +380,21 @@ const matchTheWave = defineLevel((v) => {
           return { success: false, message: `Off by up to ${f(worst * 100, 1)} cm. Try a ${tips.join(" and a ") || "small tweak"}.` };
         },
         draw(r, ov) {
-          r.clear("#f1f5f9", "#f8fafc");
-          r.rect(-0.6, -0.1, 1.1, 0.06, "#94a3b8");
-          r.rect(-0.53, -0.1, 0.03, 0.22, "#475569");
+          wall(r, "#e2e8f0", "tile");
+          // lab bench + air track
+          r.rect(-0.75, -0.3, 1.4, 0.16, "#8b6a4a", "#5b3a1f", 3);
+          metalBar(r, new Vec2(-0.6, -0.07), new Vec2(0.5, -0.07), 0.06, "#94a3b8");
+          for (let x = -0.55; x < 0.48; x += 0.04) r.circle(x, -0.06, 0.004, "#475569", undefined, 1.2);
+          r.rect(-0.53, -0.1, 0.03, 0.22, "#475569", "#1f2937", 2);
           // target zone and center
           r.line(0, -0.04, 0, 0.12, "#9ca3af", 1, [3, 3]);
           r.line(WAVE_A, -0.04, WAVE_A, 0.12, "#e63946", 1.5, [5, 3]);
           r.line(-WAVE_A, -0.04, -WAVE_A, 0.12, "#e63946", 1.5, [5, 3]);
-          r.text(`±${f(WAVE_A, 2)} m`, WAVE_A, 0.15, { size: 10, color: "#b91c1c", bold: true });
+          r.text(`±${f(WAVE_A, 2)} m`, WAVE_A, 0.15, { size: 10, color: "#b91c1c", bold: true, bg: "rgba(255,255,255,.9)" });
           const gx = glider.pos.x;
           zigzag(r, new Vec2(-0.5, 0), new Vec2(gx - 0.04, 0), 12, 0.02);
           r.rect(gx - 0.04, -0.04, 0.08, 0.07, "#7B4FA0", COLORS.ink, 4);
+          r.rect(gx - 0.03, 0.012, 0.06, 0.012, "rgba(255,255,255,.35)", undefined, 2);
           // ghost of the target position
           r.rect(target(sim.t) - 0.04, -0.04, 0.08, 0.07, "rgba(230,57,70,.18)", "rgba(230,57,70,.6)", 4);
           if (ov.trail) r.path(trail, "rgba(123,79,160,.45)", 2);
@@ -474,18 +490,23 @@ const photogateSpeed = defineLevel((v) => {
           return { success: false, message: `Gate: ${f(g, 3)} m/s. ${err > 0 ? "Pull back less." : "Pull back farther."}` };
         },
         draw(r, ov) {
-          r.clear("#f1f5f9", "#f8fafc");
-          r.rect(-0.62, -0.1, 1.15, 0.06, "#94a3b8");
-          r.rect(WALL - 0.03, -0.1, 0.03, 0.24, "#475569");
+          wall(r, "#e2e8f0", "tile");
+          // lab bench + air track
+          r.rect(-0.75, -0.3, 1.4, 0.16, "#8b6a4a", "#5b3a1f", 3);
+          metalBar(r, new Vec2(-0.62, -0.07), new Vec2(0.53, -0.07), 0.06, "#94a3b8");
+          for (let x = -0.58; x < 0.5; x += 0.04) r.circle(x, -0.06, 0.004, "#475569", undefined, 1.2);
+          r.rect(WALL - 0.03, -0.1, 0.03, 0.24, "#475569", "#1f2937", 2);
           // photogate
-          r.rect(-0.012, -0.04, 0.024, 0.2, "#111827");
+          r.rect(-0.012, -0.04, 0.024, 0.2, "#1f2937", undefined, 3);
+          r.circle(0, 0.15, 0.008, "#ef4444", undefined, 3);
           r.line(0, -0.03, 0, 0.15, "rgba(239,68,68,.7)", 1, [2, 2]);
           r.text(gate === null ? "gate" : `${f(gate, 3)} m/s`, 0, 0.19, { size: 11, bold: true, bg: "rgba(255,255,255,.9)" });
           const gx = glider.pos.x;
           zigzag(r, new Vec2(WALL, 0), new Vec2(gx - 0.04, 0), 12, 0.02);
           r.rect(gx - 0.04, -0.04, 0.08, 0.07, "#7B4FA0", COLORS.ink, 4);
-          r.line(p.A, -0.05, p.A, 0.1, "#9ca3af", 1, [3, 3]);
-          r.text(`A = ${f(p.A, 3)} m`, p.A, 0.12, { size: 10 });
+          r.rect(gx - 0.03, 0.012, 0.06, 0.012, "rgba(255,255,255,.35)", undefined, 2);
+          r.line(p.A, -0.05, p.A, 0.1, "#6b7280", 1, [3, 3]);
+          r.text(`A = ${f(p.A, 3)} m`, p.A, 0.12, { size: 10, bold: true, bg: "rgba(255,255,255,.9)" });
           if (ov.forces) r.arrow(new Vec2(gx, 0.06), new Vec2(-K * gx, 0), 40, COLORS.spring, "−kx");
           if (ov.velocity) r.arrow(new Vec2(gx, -0.02), glider.vel, 80, COLORS.velocity, "v");
           const KE = 0.5 * M * glider.vel.x ** 2,
@@ -587,14 +608,43 @@ const weighAstronaut = defineLevel((v) => {
           return { success: false, message: `Your chair's period is ${f(Ty, 3)} s, not ${T_TXT} s. ${err > 0 ? "Too heavy." : "Too light."}` };
         },
         draw(r, ov) {
-          r.clear("#0f172a", "#1e293b");
+          // inside the space station: pale wall panels, handrails and a porthole
+          wall(r, "#dbe3ec", "panel");
+          r.ctx.fillStyle = "rgba(100,116,139,.18)";
+          for (let X = 40; X < r.w; X += 120) r.ctx.fillRect(X, r.h * 0.06, 70, 14);
+          const X0 = r.w * 0.86,
+            Y0 = r.h * 0.17,
+            RR = Math.min(r.w, r.h) * 0.09;
+          r.ctx.save();
+          r.ctx.beginPath();
+          r.ctx.arc(X0, Y0, RR, 0, TAU);
+          r.ctx.fillStyle = "#0b1026";
+          r.ctx.fill();
+          r.ctx.clip();
+          const eg = r.ctx.createRadialGradient(X0 - RR * 0.2, Y0 + RR * 1.4, RR * 0.2, X0, Y0 + RR * 1.6, RR * 1.3);
+          eg.addColorStop(0, "#4aa3ff");
+          eg.addColorStop(1, "#163f8c");
+          r.ctx.fillStyle = eg;
+          r.ctx.beginPath();
+          r.ctx.arc(X0, Y0 + RR * 1.55, RR * 1.2, 0, TAU);
+          r.ctx.fill();
+          r.ctx.restore();
+          r.ctx.beginPath();
+          r.ctx.arc(X0, Y0, RR, 0, TAU);
+          r.ctx.strokeStyle = "#94a3b8";
+          r.ctx.lineWidth = 6;
+          r.ctx.stroke();
           const row = (b: Body, y: number, label: string, color: string) => {
-            r.rect(-1.1, y - 0.18, 0.05, 0.36, "#64748b");
+            r.rect(-1.1, y - 0.18, 0.05, 0.36, "#64748b", "#334155", 2);
+            r.line(-1.1, y + 0.3, 0.9, y + 0.3, "#cbd5e1", 4);
             zigzag(r, new Vec2(-1.05, y), new Vec2(b.pos.x - 0.18, y), 10, 0.05);
+            // seat + astronaut
             r.rect(b.pos.x - 0.18, y - 0.15, 0.36, 0.3, color, "#e2e8f0", 6);
-            r.circle(b.pos.x, y + 0.24, 0.08, "#fcd34d", "#92400e");
-            r.text(label, 0.95, y + 0.25, { size: 11, bold: true, color: "#e2e8f0", align: "right" });
-            r.line(0, y - 0.22, 0, y + 0.22, "rgba(226,232,240,.3)", 1, [3, 3]);
+            r.rect(b.pos.x - 0.1, y - 0.02, 0.2, 0.16, "#f8fafc", undefined, 5);
+            r.circle(b.pos.x, y + 0.24, 0.08, "#f1c27d");
+            r.circle(b.pos.x, y + 0.27, 0.075, "rgba(0,0,0,0)", "#4a3426");
+            r.text(label, 0.95, y + 0.25, { size: 11, bold: true, align: "right", bg: "rgba(255,255,255,.9)" });
+            r.line(0, y - 0.22, 0, y + 0.22, "rgba(51,65,85,.35)", 1, [3, 3]);
             if (ov.velocity) r.arrow(new Vec2(b.pos.x, y - 0.2), b.vel, 120, COLORS.velocity, "v");
           };
           row(yours, 0.35, `your estimate: ${f(p.m, 1)} kg`, "#7B4FA0");

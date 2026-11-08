@@ -2,6 +2,9 @@ import { G } from "../physics/core";
 import { COLORS } from "../physics/forces";
 import { Vec2, rad } from "../physics/vec2";
 import type { Sim } from "./types";
+import { ground, hillsScreen, sky, wall } from "../render/art/backdrops";
+import { metalBar, person, personTop, plank } from "../render/art/props";
+import { noisePattern, patternRect } from "../render/art/core";
 import { bestOnGrid, defineLevel, f, n, snap } from "./util";
 import { wheel } from "./ch10-rotation";
 
@@ -96,24 +99,28 @@ const seesaw = defineLevel((v) => {
           };
         },
         draw(r, ov) {
-          r.clear("#dcfce7", "#f0fdf4");
-          r.rect(-5, -0.2, 10, 0.2, "#65a30d");
-          r.poly([[-0.3, 0], [0.3, 0], [0, PIVOT_H]], "#78716c", COLORS.ink);
+          sky(r, r.sy(0), "day");
+          hillsScreen(r, r.sy(0), Math.min(r.h * 0.25, r.sy(0) * 0.45));
+          ground(r, 0, "grass");
+          r.poly([[-0.3, 0], [0.3, 0], [0, PIVOT_H]], "#64748b", COLORS.ink);
           const piv = new Vec2(0, PIVOT_H);
           const along = new Vec2(Math.cos(phi), -Math.sin(phi)); // toward the right end
           const up = new Vec2(Math.sin(phi), Math.cos(phi));
-          r.rotRect(piv.x, piv.y + 0.06, 2 * PLANK_HALF, 0.12, -phi, "#d6a86b");
+          plank(r, piv.x, piv.y + 0.06, 2 * PLANK_HALF, 0.12, -phi);
           // distance marks along the plank
           for (let x = -2.5; x <= 2.5001; x += 0.5) {
             const q = piv.add(along.scale(x)).add(up.scale(0.12));
             r.circle(q.x, q.y, 0.025, "#7c4a1e", undefined, 2);
           }
-          const kidAt = piv.add(along.scale(-KID_R)).add(up.scale(0.4));
-          const parAt = piv.add(along.scale(d)).add(up.scale(0.55));
-          r.circle(kidAt.x, kidAt.y, 0.28, "#0072B2", COLORS.ink);
-          r.text(`${KID_M} kg`, kidAt.x, kidAt.y, { size: 10, color: "#fff", bold: true });
-          r.circle(parAt.x, parAt.y, 0.42, "#CC79A7", COLORS.ink);
-          r.text(`${PARENT_M} kg`, parAt.x, parAt.y, { size: 11, color: "#fff", bold: true });
+          r.circle(0, PIVOT_H, 0.06, "#cbd5e1", COLORS.ink);
+          // riders sit on the plank at their distances from the pivot
+          const seat = (dist: number) => piv.add(along.scale(dist)).add(up.scale(0.12));
+          const kidSeat = seat(-KID_R),
+            parSeat = seat(d);
+          person(r, kidSeat.x, kidSeat.y - 0.45 * (1.2 / 1.75), 1.2, { pose: "sit", facing: 1, shirt: "#0072B2", hair: "#d4a373" });
+          person(r, parSeat.x, parSeat.y - 0.45, 1.75, { pose: "sit", facing: -1, shirt: "#CC79A7" });
+          r.text(`${KID_M} kg`, kidSeat.x, kidSeat.y + 0.85, { size: 10, color: "#fff", bold: true, bg: "#0072B2" });
+          r.text(`${PARENT_M} kg`, parSeat.x, parSeat.y + 1.12, { size: 11, color: "#fff", bold: true, bg: "#CC79A7" });
           r.text(`${f(KID_R, 2)} m`, -KID_R / 2, PIVOT_H - 0.25, { size: 11, bold: true, bg: "rgba(255,255,255,.85)" });
           r.text(`${f(d, 2)} m`, d / 2, PIVOT_H - 0.25, { size: 11, bold: true, bg: "rgba(255,255,255,.85)" });
           if (ov.forces) {
@@ -219,14 +226,25 @@ const rustyBolt = defineLevel((v) => {
           return { success: false, message: `Only ${f(tau, 1)} N·m. Stuck! ${p.angle < 60 ? "Push more across the handle," : ""} ${r0 < 0.4 ? "grip farther out." : ""}`.replace(/\s+/g, " ").trim() };
         },
         draw(r, ov) {
-          r.clear("#e5e7eb", "#f9fafb");
-          // wheel hub
-          r.circle(0, 0, 0.1, "#374151", COLORS.ink);
+          wall(r, "#cdb48f", "pegboard");
+          // rusty steel plate with the stuck bolt
+          r.rect(-0.16, -0.16, 0.32, 0.32, "#8b5a3c", "#5b3a1f", 6);
+          r.ctx.fillStyle = noisePattern(r.ctx, "#9a5b32", { dark: 0.2, light: 0.08, seed: 9 });
+          r.ctx.globalAlpha = 0.5;
+          r.ctx.fillRect(r.sx(-0.16), r.sy(0.16), 0.32 * r.scale, 0.32 * r.scale);
+          r.ctx.globalAlpha = 1;
+          r.poly(
+            Array.from({ length: 6 }, (_, i) => [0.085 * Math.cos((i * TAU) / 6 + phi), 0.085 * Math.sin((i * TAU) / 6 + phi)] as [number, number]),
+            "#6b7280",
+            COLORS.ink,
+          );
           const along = new Vec2(Math.cos(phi), Math.sin(phi));
           const perp = along.perp();
           const end = along.scale(HANDLE);
-          r.rotRect(end.x / 2, end.y / 2, HANDLE, 0.035, phi, "#94a3b8");
-          r.circle(0, 0, 0.045, "#cbd5e1", COLORS.ink);
+          r.circle(0, 0, 0.1, "#cbd5e1", "#475569");
+          metalBar(r, new Vec2(0, 0), end, 0.04, "#94a3b8");
+          r.rect(end.x - 0.02, end.y - 0.025, 0.04, 0.05, "#1f2937", undefined, 3);
+          r.circle(0, 0, 0.045, "#e2e8f0", COLORS.ink);
           // grip point and push
           const grip = along.scale(r0);
           r.circle(grip.x, grip.y, 0.022, "#e63946", COLORS.ink);
@@ -338,17 +356,25 @@ const skaterSpin = defineLevel((v) => {
           return { success: false, message: `Spinning at ${f(wf, 2)} rad/s. ${wf < TARGET_W ? "Pull the hands in closer." : "Don't pull in so far."}` };
         },
         draw(r, ov) {
-          r.clear("#e0f2fe", "#f0f9ff");
-          r.circle(0, 0, 1.25, "#f8fafc", "#bae6fd");
+          r.ctx.fillStyle = noisePattern(r.ctx, "#e6f4fb", { light: 0.12, dark: 0.02, seed: 4 });
+          r.ctx.fillRect(0, 0, r.w, r.h);
+          // skate scratches
+          r.ctx.strokeStyle = "rgba(255,255,255,.8)";
+          r.ctx.lineWidth = 1;
+          for (let i = 0; i < 14; i++) {
+            r.ctx.beginPath();
+            r.ctx.arc(r.sx(0), r.sy(0), (1.4 + i * 0.13) * r.scale, i, i + 1.2);
+            r.ctx.stroke();
+          }
+          r.circle(0, 0, 1.25, "rgba(255,255,255,.6)", "#7dd3fc");
           const ra = armR(sim.t);
           const u = new Vec2(Math.cos(ang), Math.sin(ang));
           const hand1 = u.scale(ra);
           const hand2 = u.scale(-ra);
           r.line(hand2.x, hand2.y, hand1.x, hand1.y, "#CC79A7", 9);
-          r.circle(hand1.x, hand1.y, 0.08, "#fcd34d", COLORS.ink);
-          r.circle(hand2.x, hand2.y, 0.08, "#fcd34d", COLORS.ink);
-          r.circle(0, 0, 0.22, "#CC79A7", COLORS.ink);
-          r.circle(0, 0, 0.12, "#fcd34d", COLORS.ink);
+          r.circle(hand1.x, hand1.y, 0.08, "#f1c27d", COLORS.ink);
+          r.circle(hand2.x, hand2.y, 0.08, "#f1c27d", COLORS.ink);
+          personTop(r, 0, 0, 0.5, ang, "#CC79A7", "#4a3426");
           if (ov.velocity) r.arrow(hand1, u.perp().scale(omega() * ra), 30, COLORS.velocity, "v");
           if (ov.trail) {
             const ctx = r.ctx;
@@ -464,25 +490,29 @@ const swingingDoor = defineLevel((v) => {
           return { success: false, message: `Opened in ${f(tOpen, 2)} s. ${d > 0 ? "Push harder." : "Push gentler."}` };
         },
         draw(r, ov) {
-          r.clear("#f5f5f4", "#fafaf9");
+          // floor plan seen from above: wooden floor, plaster walls
+          r.ctx.fillStyle = noisePattern(r.ctx, "#d2a679", { light: 0.04, dark: 0.06, seed: 6 });
+          r.ctx.fillRect(0, 0, r.w, r.h);
+          r.ctx.fillStyle = "rgba(90,55,25,.16)";
+          for (let Y = 0; Y < r.h; Y += 46) r.ctx.fillRect(0, Y, r.w, 2);
           // wall (top view), hinge at the origin; the door swings from along +x up to +y
-          r.rect(-0.3, -0.12, 0.3, 0.12, "#78716c");
-          r.rect(W + 0.02, -0.12, 0.3, 0.12, "#78716c");
+          r.rect(-0.3, -0.12, 0.3, 0.12, "#e7e5e4", "#57534e");
+          r.rect(W + 0.02, -0.12, 0.3, 0.12, "#e7e5e4", "#57534e");
           const ctx = r.ctx;
           ctx.beginPath();
           ctx.arc(r.sx(0), r.sy(0), W * r.scale, -Math.PI / 2, 0);
-          ctx.strokeStyle = "rgba(17,24,39,.25)";
+          ctx.strokeStyle = "rgba(17,24,39,.3)";
           ctx.setLineDash([4, 6]);
           ctx.lineWidth = 1.5;
           ctx.stroke();
           ctx.setLineDash([]);
           const u = new Vec2(Math.cos(th), Math.sin(th));
-          r.rotRect((u.x * W) / 2, (u.y * W) / 2, W, 0.05, th, "#b45309");
-          r.circle(0, 0, 0.03, COLORS.ink);
+          plank(r, (u.x * W) / 2, (u.y * W) / 2, W, 0.05, th, "#8b5a2b");
+          r.circle(0, 0, 0.03, "#94a3b8", COLORS.ink);
           const hp = u.scale(rH);
           r.circle(hp.x, hp.y, 0.025, "#facc15", COLORS.ink);
-          r.line(0, 0, 0, W, "#9ca3af", 1, [3, 3]);
-          r.text("open", 0.05, W + 0.05, { size: 11, align: "left", color: "#6b7280" });
+          r.line(0, 0, 0, W, "#6b7280", 1, [3, 3]);
+          r.text("open", 0.05, W + 0.05, { size: 11, align: "left", bold: true, bg: "rgba(255,255,255,.85)" });
           if (ov.forces && tOpen === null) r.arrow(hp, u.perp().scale(p.F), 60 / Math.max(fEx, 1), COLORS.applied, "F");
           if (ov.velocity) r.arrow(u.scale(W), u.perp().scale(w * W), 80, COLORS.velocity, "v");
           r.hud([`t = ${f(tOpen ?? sim.t, 2)} s`, `angle ${f((th * 180) / Math.PI, 0)}°`]);
@@ -580,21 +610,33 @@ const wellBucket = defineLevel((v) => {
           return { success: false, message: `Splash at ${f(tHit, 2)} s. ${d < 0 ? "Too fast: heavier drum." : "Too slow: lighter drum."}` };
         },
         draw(r, ov) {
-          r.clear("#e7e5e4", "#f5f5f4");
-          // well shaft
-          r.rect(-1.2, -D - 0.6, 0.7, D + 0.6, "#a8a29e");
-          r.rect(0.5, -D - 0.6, 0.7, D + 0.6, "#a8a29e");
-          r.rect(-0.5, -D - 0.6, 1.0, 0.45, "#60a5fa");
-          r.rect(-1.2, 0, 2.4, 0.08, "#78716c");
-          // drum (drawn 2× radius) and stand
+          sky(r, r.sy(0), "day");
+          hillsScreen(r, r.sy(0), Math.min(r.h * 0.12, r.sy(0) * 0.5));
+          ground(r, 0, "dirt");
+          // stone well shaft (cut-away)
+          patternRect(r, -1.2, -D - 0.6, 0.7, D + 0.6, noisePattern(r.ctx, "#9ca3af", { dark: 0.14, light: 0.08, seed: 5 }));
+          patternRect(r, 0.5, -D - 0.6, 0.7, D + 0.6, noisePattern(r.ctx, "#9ca3af", { dark: 0.14, light: 0.08, seed: 5 }));
+          for (let y = 0; y > -D - 0.6; y -= 0.3) {
+            r.line(-1.2, y, -0.5, y, "rgba(0,0,0,.18)", 1);
+            r.line(0.5, y, 1.2, y, "rgba(0,0,0,.18)", 1);
+          }
+          r.rect(-0.5, -D - 0.6, 1.0, D + 0.6, "#3f3a36");
+          r.rect(-0.5, -D - 0.6, 1.0, 0.45, "#3b82c4");
+          r.rect(-0.5, -D - 0.17, 1.0, 0.04, "rgba(255,255,255,.35)");
+          // stone rim
+          r.rect(-1.25, -0.02, 0.75, 0.22, "#a8a29e", "#57534e", 3);
+          r.rect(0.5, -0.02, 0.75, 0.22, "#a8a29e", "#57534e", 3);
+          // drum (drawn 2× radius) on a wooden stand
           const RD = 0.3;
-          r.line(-0.7, 0.08, -0.7, 0.55, "#57534e", 5);
-          r.line(0.7, 0.08, 0.7, 0.55, "#57534e", 5);
+          r.line(-0.7, 0.2, -0.7, 0.55, "#7c4a1e", 6);
+          r.line(0.7, 0.2, 0.7, 0.55, "#7c4a1e", 6);
+          r.line(-0.7, 0.55, 0.7, 0.55, "#7c4a1e", 3);
           wheel(r, 0, 0.55, RD, s / R, "#b45309", 8);
-          r.text(`${p.M} kg`, 0, 0.95, { size: 11, bold: true });
+          r.text(`${p.M} kg`, 0, 0.95, { size: 11, bold: true, bg: "rgba(255,255,255,.9)" });
           const by = -s - 0.15;
-          r.line(RD, 0.55, RD, by + 0.2, "#78350f", 2);
-          r.poly([[RD - 0.15, by + 0.2], [RD + 0.15, by + 0.2], [RD + 0.11, by - 0.1], [RD - 0.11, by - 0.1]], "#64748b", COLORS.ink);
+          r.line(RD, 0.55, RD, by + 0.2, "#a16207", 2);
+          r.poly([[RD - 0.15, by + 0.2], [RD + 0.15, by + 0.2], [RD + 0.11, by - 0.1], [RD - 0.11, by - 0.1]], "#94a3b8", COLORS.ink);
+          r.line(RD - 0.15, by + 0.12, RD + 0.15, by + 0.12, "rgba(0,0,0,.25)", 1.5);
           if (ov.forces) {
             const ppu = 0.6 / (m * G);
             r.arrow(new Vec2(RD - 0.3, by), new Vec2(0, -m * G), ppu * r.scale, COLORS.gravity, "mg");

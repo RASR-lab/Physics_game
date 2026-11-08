@@ -4,6 +4,7 @@ import { CHAPTERS, nextLevel } from "../levels";
 import { DT, FixedStepper } from "../physics/core";
 import { Renderer } from "../render/renderer";
 import { LiveGraph } from "../render/graph";
+import { Celebration } from "../render/art/celebrate";
 import { getLevel, recordLevel, tutorialDone } from "../game/progress";
 import { EQUATIONS, type EqId, type SheetEquation } from "../levels/equations";
 import { TUTORIALS } from "../tutorials";
@@ -59,6 +60,7 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
   let paused = false;
   let slow = false;
   let sim: Sim = level.create(params);
+  const celebrate = new Celebration();
   let outcomeShown = true;
   let lastOutcome: Outcome | null = null;
   const setters: Record<string, (v: number) => void> = {};
@@ -372,6 +374,7 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
 
   function preview() {
     sim = level.create(params);
+    celebrate.clear();
     graph?.clear();
     outcomeShown = true;
     updatePanel();
@@ -390,6 +393,7 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
   function launch() {
     if (phase === "predict" || phase === "equation") return;
     sim = level.create(params);
+    celebrate.clear();
     graph?.clear();
     stepper.reset();
     running = true;
@@ -423,6 +427,7 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
     launchBtn.disabled = false;
     const o = sim.outcome();
     lastOutcome = o;
+    celebrate.start(o.success, sim.banner?.(o));
     outcomeShown = true;
     outcomeBox.className = `outcome ${o.success ? "win" : "fail"}`;
     outcomeBox.replaceChildren(h("strong", {}, o.success ? "✅ " : "❌ "), o.message);
@@ -458,6 +463,7 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
     }
     renderer.setView(sim.view ? sim.view() : level.view);
     sim.draw(renderer, ov);
+    celebrate.draw(renderer, Math.min(0.05, realDt));
     if (graph) graph.draw();
     if (now - lastPanel > 100) {
       updatePanel();

@@ -4,8 +4,10 @@ import { EARTH_MOON as REAL_EARTH_MOON, GM_EARTH, M_EARTH, M_MOON, R_EARTH, gAtA
 import { Vec2 } from "../physics/vec2";
 import type { Force } from "../physics/core";
 import type { Sim } from "./types";
+import { space as spaceArt } from "../render/art/backdrops";
+import { earth as earthArt, moon as moonArt, satellite } from "../render/art/props";
 import type { Renderer } from "../render/renderer";
-import { bestOnGrid, defineLevel, f, n, seeded, snap } from "./util";
+import { bestOnGrid, defineLevel, f, n, snap } from "./util";
 
 const TAU = 2 * Math.PI;
 const KM = 1000;
@@ -28,20 +30,11 @@ function pullToward(center: Vec2, GM: number, label: string): Force {
 }
 
 function space(r: Renderer, seed = 7) {
-  r.clear("#0b1026", "#1e1b4b");
-  const v = r.visible();
-  const rnd = seeded(seed);
-  for (let i = 0; i < 90; i++) {
-    const x = v.xMin + rnd() * (v.xMax - v.xMin);
-    const y = v.yMin + rnd() * (v.yMax - v.yMin);
-    r.circle(x, y, 0, rnd() > 0.85 ? "#fde68a" : "#e5e7eb", undefined, rnd() * 1.4 + 0.4);
-  }
+  spaceArt(r, seed);
 }
 
 function earth(r: Renderer, x = 0, y = 0, radius = R_EARTH / MM) {
-  r.circle(x, y, radius, "#2563eb", "#93c5fd", 6);
-  r.circle(x - radius * 0.3, y + radius * 0.25, radius * 0.35, "#16a34a", undefined, 2);
-  r.circle(x + radius * 0.35, y - radius * 0.3, radius * 0.25, "#16a34a", undefined, 1);
+  earthArt(r, x, y, radius, 6);
 }
 
 /* ------------------------------------------------------------------ */
@@ -137,6 +130,7 @@ const halfWeight = defineLevel((v) => {
           ctx.setLineDash([]);
           r.textPx("dotted ring = Space Station orbit (400 km)", 14, r.h - 16, { size: 11, align: "left", color: "#fde68a" });
           r.rect(-0.35, top - 0.3, 0.7, 0.6, "#e5e7eb", "#111827", 4);
+          r.rect(-0.22, top - 0.12, 0.44, 0.26, "#38bdf8");
           r.text(`h = ${p.h} km`, 0.6, top, { size: 12, bold: true, align: "left", color: "#fff" });
           r.text(`r = R + h = ${f((R_EARTH + h) / KM, 0)} km`, 0.6, top - 0.75, { size: 11, align: "left", color: "#cbd5e1" });
           r.line(0, 0, -6.371 * Math.cos(0.6), -6.371 * Math.sin(0.6), "#fff", 1.5, [4, 3]);
@@ -274,7 +268,7 @@ const intoOrbit = defineLevel((v) => {
           ctx.stroke();
           if (ov.trail) r.path(trail, "rgba(253,186,116,.9)", 2);
           const P = sat.pos.scale(1 / MM);
-          r.rotRect(P.x, P.y, 0.45, 0.22, Math.atan2(sat.vel.y, sat.vel.x), "#e5e7eb");
+          satellite(r, P.x, P.y, 0.3, Math.atan2(sat.vel.y, sat.vel.x), 10);
           if (ov.velocity && !crashed) r.arrow(P, sat.vel, 0.008, COLORS.velocity, "v");
           if (ov.forces && !crashed) r.arrow(P, sat.lastForces[0]?.value ?? sat.pos.scale(-1), 6, COLORS.gravity, "F_g");
           r.hud([`mission time ${f((sim.t * ORBIT_TS) / 60, 0)} min`, `altitude ${f(alt() / KM, 0)} km`]);
@@ -380,9 +374,9 @@ const tugOfWar = defineLevel((v) => {
         },
         draw(r, ov) {
           space(r, 3);
-          r.circle(0, 0, 0, "#2563eb", "#93c5fd", 14);
-          r.text("Earth", 0, -22, { size: 12, bold: true, color: "#fff" });
-          r.circle(EARTH_MOON / MM, 0, R_MOON / MM, "#d1d5db", "#f9fafb", 7);
+          earthArt(r, 0, 0, 0, 22);
+          r.text("Earth", 0, -26, { size: 12, bold: true, color: "#fff" });
+          moonArt(r, EARTH_MOON / MM, 0, R_MOON / MM, 11);
           r.text("Moon", EARTH_MOON / MM, -22, { size: 12, bold: true, color: "#fff" });
           r.line(0, -40, EARTH_MOON / MM, -40, "#64748b", 1);
           r.text(D_TXT, EARTH_MOON / MM / 2, -46, { size: 11, color: "#cbd5e1" });
@@ -390,7 +384,7 @@ const tugOfWar = defineLevel((v) => {
           r.text("halfway", EARTH_MOON / MM / 2, 40, { size: 10, color: "#94a3b8" });
           const P = probe.pos.scale(1 / MM);
           r.line(x0 / MM, -12, x0 / MM, 12, "#fde68a", 1.5, [3, 3]);
-          r.circle(P.x, P.y, 0, "#fbbf24", "#111827", 7);
+          satellite(r, P.x, P.y, 0, 0, 12);
           if (ov.forces && !hit) {
             const FE = probe.lastForces[0]?.value ?? fE.compute(probe, 0);
             const FM = probe.lastForces[1]?.value ?? fM.compute(probe, 0);
@@ -527,7 +521,7 @@ const skyTracker = defineLevel((v) => {
           ctx.setLineDash([]);
           if (ov.trail) r.path(trail, "rgba(253,186,116,.9)", 2);
           const S = sat.pos.scale(1 / MM);
-          r.rotRect(S.x, S.y, 2, 1, Math.atan2(sat.vel.y, sat.vel.x), "#e5e7eb");
+          satellite(r, S.x, S.y, 0.9, Math.atan2(sat.vel.y, sat.vel.x), 12);
           if (ov.velocity) r.arrow(S, sat.vel, 0.012, COLORS.velocity, "v");
           if (ov.forces) r.arrow(S, sat.pos.scale(-1), 30 / sat.pos.len(), COLORS.gravity, "F_g");
           r.hud([`mission time ${f((sim.t * TS) / 3600, 1)} h`, `orbit ${f((swept / TAU) * 100, 0)}% done`]);
@@ -621,9 +615,9 @@ const moonHop = defineLevel((v) => {
         },
         draw(r, ov) {
           space(r, 9);
-          r.circle(0, 0, RM / MM, "#9ca3af", "#e5e7eb");
-          r.circle(-0.6, 0.5, 0.25, "#6b7280");
-          r.circle(0.5, -0.7, 0.18, "#6b7280");
+          moonArt(r, 0, 0, RM / MM);
+          
+          
           const ctx = r.ctx;
           ctx.beginPath();
           ctx.arc(r.sx(0), r.sy(0), ((RM + H) / MM) * r.scale, 0, TAU);
@@ -632,10 +626,10 @@ const moonHop = defineLevel((v) => {
           ctx.lineWidth = 2;
           ctx.stroke();
           ctx.setLineDash([]);
-          r.text(`target ${H_KM} km`, 0.15, (RM + H) / MM + 0.12, { size: 11, color: "#6ee7b7", align: "left" });
+          r.text(`target ${H_KM} km`, 0.15, (RM + H) / MM + 0.12, { size: 11, color: "#6ee7b7", align: "left", bold: true });
           const P = probe.pos.scale(1 / MM);
           r.line(0, RM / MM, P.x, P.y, "rgba(253,186,116,.7)", 2, [4, 4]);
-          r.rect(P.x - 0.05, P.y - 0.08, 0.1, 0.16, "#e5e7eb", "#111827", 2);
+          satellite(r, P.x, P.y, 0.1, Math.PI / 2, 10);
           if (ov.velocity) r.arrow(P.add(new Vec2(0.2, 0)), probe.vel, 0.05, COLORS.velocity, "v");
           if (ov.forces) r.arrow(P.add(new Vec2(-0.2, 0)), new Vec2(0, -GM_M / probe.pos.dot(probe.pos)), 30, COLORS.gravity, "g here");
           const y = probe.pos.y;

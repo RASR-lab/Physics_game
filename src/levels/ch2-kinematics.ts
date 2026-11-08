@@ -2,7 +2,13 @@ import { Body, G, stepBodies, crossFraction } from "../physics/core";
 import { COLORS, gravity } from "../physics/forces";
 import { Vec2 } from "../physics/vec2";
 import type { Sim } from "./types";
+import { StreetFx, STREET, drawBackdrop, drawForeground, drawRoad, drawSkids, drawStopSign, streetCamera } from "../render/scenes/street";
+import { car as carArt, ball, person, tyre } from "../render/art/props";
+import { ground, sky, skylineScreen, treeScreen } from "../render/art/backdrops";
 import { defineLevel, f, n, snap, Strobe } from "./util";
+
+/** Street layout for "Catch the Bus": a wider road with a bus lane and a scooter lane. */
+const BUS_ST = { ...STREET, farWalkTop: 2.3, farCurb: 1.6, roadNear: -7.2, nearWalkBottom: -9.6, laneDivider: -4.2 };
 
 /* ------------------------------------------------------------------ */
 /* 2-1  Stop at the Line   (v² = v0² + 2aΔx)                           */
@@ -45,7 +51,7 @@ const stopAtTheLine = defineLevel((v) => {
       tex: String.raw`v^2 = v_0^2 + 2a\Delta x \;\Rightarrow\; \Delta x_{stop} = \frac{v_0^2}{2a}`,
       note: "2× speed → 4× stopping distance.",
     },
-    view: { xMin: -4, xMax: STOP_LINE + 8, yMin: -8, yMax: 6, anchor: "bottom" },
+    view: { xMin: -4, xMax: STOP_LINE + 8, yMin: -5.4, yMax: 6, anchor: "bottom" },
     graph: { title: "Velocity vs. time", yLabel: "v (m/s)", tMax: 8, yMin: 0, yMax: V0 + 2, series: [{ label: "v", color: COLORS.velocity }] },
     // brake just hard enough: the grid value at or above the exact answer stops before the line
     solution: { decel: snap(decel, aEx * 1.01, "up") },
@@ -59,6 +65,12 @@ const stopAtTheLine = defineLevel((v) => {
       ];
       const strobe = new Strobe(0.5);
       let stopped = false;
+      // cosmetic-only state for the illustrated scene
+      const fx = new StreetFx();
+      let lastReal = -1,
+        lastSimT = 0,
+        sinceStop = 0,
+        announced = false;
       const sim: Sim = {
         t: 0,
         step(dt) {
@@ -83,23 +95,49 @@ const stopAtTheLine = defineLevel((v) => {
           return { success: true, message: `Stopped ${f(gap, 2)} m before the line!` };
         },
         draw(r, ov) {
-          r.clear();
-          r.rect(-20, -6, 100, 6, "#6b7280");
-          r.rect(-20, -0.25, 100, 0.25, "#4b5563");
-          for (let x = -20; x < 80; x += 6) r.rect(x, -3.1, 3, 0.25, "#f3f4f6");
-          // stop line + crosswalk
-          r.rect(STOP_LINE, -6, 0.5, 6, "#ffffff");
-          for (let y = -5.6; y < -0.3; y += 1.1) r.rect(STOP_LINE + 1.2, y, 3, 0.6, "#f9fafb");
-          r.flag(STOP_LINE, 0, 4, "#e63946", "STOP");
-          r.rect(STOP_LINE - 1.5, -6, 1.5, 6, "rgba(0,158,115,.25)");
-          r.ruler(0, STOP_LINE + 5, -6.4, 5);
-          if (ov.trail) for (const s of strobe.pts) r.circle(s.x, 0.25, 0.3, "rgba(213,94,0,.55)", undefined, 4);
-          r.car(car.pos.x - 2.25, 0, 4.5, "#e4572e");
-          const c = new Vec2(car.pos.x - 2.25, 2.0);
+          // cosmetic timing: effects follow sim time (so pause/slow-mo apply), then real time after the stop
+          const now = performance.now() / 1000;
+          const realDt = lastReal < 0 ? 0 : Math.min(0.05, now - lastReal);
+          lastReal = now;
+          const simDt = Math.max(0, sim.t - lastSimT);
+          lastSimT = sim.t;
+          const moving = sim.t > 0 && !stopped;
+          if (moving) fx.emitSmoke(car.pos.x - 2.25, simDt, a / 10);
+          if (stopped && !announced) {
+            announced = true;
+            if (STOP_LINE - car.pos.x < 0) fx.shakeT = 0;
+          }
+          if (stopped) sinceStop += realDt;
+          fx.update(stopped ? realDt : simDt);
+
+          const [shx, shy] = fx.shake();
+          r.ctx.save();
+          r.ctx.translate(shx, shy);
+          drawBackdrop(r, now);
+          drawRoad(r, STOP_LINE, 1.5);
+          drawStopSign(r, STOP_LINE + 1.0);
+          if (sim.t > 0) drawSkids(r, -2.25, car.pos.x - 2.25, a / 10);
+          if (ov.trail)
+            for (const s of strobe.pts) {
+              r.circle(s.x - 2.25, -0.9, 0.32, "rgba(255,255,255,.9)", undefined, 6);
+              r.circle(s.x - 2.25, -0.9, 0.22, COLORS.velocity, undefined, 4);
+            }
+          // body pitches nose-down while braking (weight transfer), then rocks back when stopped
+          const p0 = -0.004 * a;
+          const pitch = moving ? p0 : stopped ? p0 * Math.cos(9 * sinceStop) * Math.exp(-3.5 * sinceStop) : 0;
+          carArt(r, { x: car.pos.x - 2.25, rolled: car.pos.x, braking: sim.t > 0, pitch, color: "#e4572e" });
+          fx.drawSmoke(r);
+          drawForeground(r);
+          const tick = r.scale * 5 < 45 ? 10 : 5; // wider ticks on narrow screens so labels don't collide
+          r.ruler(0, Math.max(STOP_LINE + 5, Math.floor(r.visible().xMax / tick) * tick), -2.95, tick, "m", "#475569");
+          const c = new Vec2(car.pos.x - 2.25, 2.3);
           if (ov.velocity) r.arrow(c.add(new Vec2(0, 1)), car.vel, 4, COLORS.velocity, "v");
           if (ov.forces) for (const fv of car.lastForces) r.arrow(c, fv.value, 0.008, fv.force.color, fv.force.label);
           r.hud([`t = ${f(sim.t, 2)} s`, `x = ${f(car.pos.x, 1)} m`]);
+          r.ctx.restore();
         },
+        banner: (o) => (o.success ? "Perfect stop! \u{1F389}" : STOP_LINE - car.pos.x < 0 ? "Ran the stop line!" : "Stopped too early"),
+        view: () => streetCamera(car.pos.x, STOP_LINE, sinceStop, stopped),
         readouts: () => [
           { label: "Time", value: `${f(sim.t, 2)} s` },
           { label: "Position (front)", value: `${f(car.pos.x, 2)} m` },
@@ -205,21 +243,26 @@ const twoSecondDrop = defineLevel((v) => {
         },
         draw(r, ov) {
           r.setView(sim.view!());
-          r.clear("#1f2a44", "#3b4a6b");
-          const vis = r.visible();
-          r.rect(vis.xMin, -2, vis.xMax - vis.xMin, 2, "#9ca3af");
-          // tower
-          r.rect(-4.5, 0, 1.4, h, "#64748b", "#334155");
-          r.rect(-4.5, h, 4.6, 0.25, "#94a3b8");
-          r.vruler(0, Math.max(h, 5), 4.2, h > 20 ? 5 : 2, "m", "#e2e8f0");
+          sky(r, r.sy(0), "day");
+          skylineScreen(r, r.sy(0), Math.min(r.h * 0.45, r.sy(0) * 0.6));
+          ground(r, 0, "plaza");
+          // drop tower: concrete column with a window strip and a railed platform
+          r.rect(-4.5, 0, 1.4, h, "#94a3b8", "#334155");
+          for (let y = 1; y < h - 0.6; y += 1.6) r.rect(-4.1, y, 0.6, 0.8, "#cfe3f5");
+          r.rect(-4.6, h, 4.8, 0.25, "#64748b", "#334155", 3);
+          for (let x = -4.5; x <= 0.1; x += 0.5) r.line(x, h + 0.25, x, h + 0.75, "#64748b", 1.5);
+          r.line(-4.6, h + 0.75, 0.2, h + 0.75, "#64748b", 2);
+          r.vruler(0, Math.max(h, 5), 4.2, h > 20 ? 5 : 2, "m", "#334155");
           balls.forEach((b, i) => {
             if (ov.trail) for (const s of strobe[i].pts) r.circle(s.x, s.y, 0.08, i ? "rgba(230,159,0,.6)" : "rgba(86,180,233,.6)", undefined, 3);
-            r.circle(b.pos.x, b.pos.y + (i ? 0.035 : 0.11), i ? 0.033 : 0.11, i ? "#d9f99d" : "#1e3a8a", "#fff", i ? 6 : 12);
-            r.text(i ? "tennis 0.06 kg" : "bowling 7 kg", b.pos.x, b.pos.y + (i ? 0.035 : 0.11), {
+            const rad = i ? 0.033 : 0.11;
+            ball(r, b.pos.x, b.pos.y + rad, rad, "#1e3a8a", i ? "tennis" : "bowling", i ? 7 : 13);
+            r.text(i ? "tennis 0.06 kg" : "bowling 7 kg", b.pos.x + (i ? 0.5 : -0.5), b.pos.y + rad + 0.3, {
               size: 11,
-              color: "#fff",
               align: i ? "left" : "right",
               baseline: "bottom",
+              bold: true,
+              bg: "rgba(255,255,255,.9)",
             });
             const o = b.pos.add(new Vec2(0, 0.1));
             if (ov.forces) r.arrow(o, new Vec2(0, -b.mass * G), 0.9, COLORS.gravity, `F_g ${f(b.mass * G, 1)} N`);
@@ -326,24 +369,25 @@ const matchTheGraph = defineLevel((v) => {
         },
         draw(r, ov) {
           r.setView(sim.view!());
-          r.clear();
+          drawBackdrop(r, 0);
+          drawRoad(r, null);
+          drawForeground(r);
           const vis = r.visible();
-          r.rect(vis.xMin, -6, vis.xMax - vis.xMin, 6, "#6b7280");
-          for (let x = Math.floor(vis.xMin / 6) * 6; x < vis.xMax; x += 6) r.rect(x, -2.1, 3, 0.2, "#f3f4f6");
-          for (let x = Math.ceil(vis.xMin / 10) * 10; x < vis.xMax; x += 10) {
-            r.line(x, 0, x, 0.6, "#374151", 2);
-            r.text(`${x} m`, x, 1.0, { size: 11, color: "#374151" });
-          }
-          if (ov.trail) for (const s of strobe.pts) r.circle(s.x, -0.6, 0.25, "rgba(213,94,0,.6)", undefined, 4);
-          r.car(car.pos.x, 0, 4.5, "#0ea5a5", car.vel.x >= 0 ? 1 : -1);
-          const c = new Vec2(car.pos.x, 2.2);
+          r.ruler(Math.ceil(vis.xMin / 10) * 10, Math.floor(vis.xMax / 10) * 10, -2.95, 10, "m", "#475569");
+          if (ov.trail)
+            for (const s of strobe.pts) {
+              r.circle(s.x, -0.9, 0.32, "rgba(255,255,255,.9)", undefined, 6);
+              r.circle(s.x, -0.9, 0.22, COLORS.velocity, undefined, 4);
+            }
+          carArt(r, { x: car.pos.x, rolled: car.pos.x, color: "#0ea5a5", facing: car.vel.x >= 0 ? 1 : -1, braking: sim.t > 0 && p.a * car.vel.x < 0 });
+          const c = new Vec2(car.pos.x, 2.5);
           if (ov.velocity) r.arrow(c.add(new Vec2(0, 0.9)), car.vel, 6, COLORS.velocity, "v");
           if (ov.forces) r.arrow(c, new Vec2(p.a, 0), 25, COLORS.acceleration, "a");
           r.hud([`t = ${f(sim.t, 2)} s`, `v = ${f(car.vel.x, 2)} m/s`]);
         },
         view() {
           const cx = car.pos.x + 8;
-          return { xMin: cx - 22, xMax: cx + 22, yMin: -4, yMax: 6, anchor: "bottom" };
+          return { xMin: cx - 22, xMax: cx + 22, yMin: -4.6, yMax: 6, anchor: "bottom" };
         },
         readouts: () => [
           { label: "Time", value: `${f(sim.t, 2)} s` },
@@ -401,7 +445,7 @@ const catchTheBus = defineLevel((v) => {
       tex: String.raw`\bar v = \frac{\Delta x}{\Delta t} = \frac{v_0 + v}{2},\qquad x = x_0 + v_0t + \tfrac12at^2`,
       note: "Start from rest → final speed is 2× the average.",
     },
-    view: { xMin: -8, xMax: D + 14, yMin: -8, yMax: 8, anchor: "bottom" },
+    view: { xMin: -8, xMax: D + 14, yMin: -9.2, yMax: 8, anchor: "bottom" },
     graph: {
       title: "Velocity vs. time",
       yLabel: "v (m/s)",
@@ -450,30 +494,36 @@ const catchTheBus = defineLevel((v) => {
           return { success: false, message: `You arrived ${f(Math.abs(d), 1)} s ${d > 0 ? "after" : "before"} the bus. ${d > 0 ? "Accelerate harder." : "Ease off."}` };
         },
         draw(r, ov) {
-          r.clear();
-          const vis = r.visible();
-          r.rect(vis.xMin, -6, vis.xMax - vis.xMin, 6, "#6b7280");
-          for (let x = Math.floor(vis.xMin / 8) * 8; x < vis.xMax; x += 8) r.rect(x, -3.1, 4, 0.25, "#f3f4f6");
-          r.flag(D, 0, 6, "#0072B2", "BUS STOP");
-          r.ruler(0, D, -6.6, D > 100 ? 20 : 10);
-          if (ov.trail) for (const s of strobe.pts) r.circle(s.x, -1, 0.5, "rgba(213,94,0,.55)", undefined, 4);
-          // bus
+          drawBackdrop(r, 0, BUS_ST);
+          drawRoad(r, null, 0, BUS_ST);
+          drawForeground(r, BUS_ST);
+          r.ruler(0, D, -7.75, D > 100 ? 20 : 10, "m", "#475569");
+          // bus stop sign on the far sidewalk
+          r.line(D, BUS_ST.farCurb + 0.2, D, BUS_ST.farCurb + 4.6, "#6b7280", 3);
+          r.rect(D - 1.8, BUS_ST.farCurb + 4.4, 3.6, 2.0, "#0072B2", "#003f63", 4);
+          r.text("BUS STOP", D, BUS_ST.farCurb + 5.4, { size: 11, bold: true, color: "#fff" });
+          if (ov.trail) for (const s of strobe.pts) r.circle(s.x, -6.9, 0.5, "rgba(213,94,0,.55)", undefined, 4);
+          // bus (front at bx)
           const bx = bus.pos.x;
-          r.rect(bx - 12, -2.6, 12, 4.4, "#facc15", "#713f12", 6);
-          for (let i = 0; i < 4; i++) r.rect(bx - 11.2 + i * 2.8, -0.4, 2, 1.4, "#cfe8ff");
-          r.circle(bx - 9.5, -2.6, 0.9, "#1f2937");
-          r.circle(bx - 2.5, -2.6, 0.9, "#1f2937");
-          // you on a scooter (drawn 2× size so you can spot it next to the bus)
+          r.rect(bx - 12.3, -3.6, 12.6, 0.4, "rgba(0,0,0,.18)", undefined, 4);
+          r.rect(bx - 12, -2.6, 12, 4.4, "#facc15", "#a16207", 8);
+          r.rect(bx - 12, -1.0, 12, 0.35, "#e4572e");
+          for (let i = 0; i < 4; i++) r.rect(bx - 11.2 + i * 2.6, -0.3, 2.1, 1.5, "#2c3e57");
+          r.rect(bx - 1.6, -2.3, 1.3, 3.5, "#5d7fa6", "#a16207", 3);
+          r.circle(bx - 0.15, -1.6, 0.25, "#fff4c4");
+          tyre(r, bx - 9.5, -2.6, 0.9, bus.pos.x / 0.9);
+          tyre(r, bx - 2.6, -2.6, 0.9, bus.pos.x / 0.9);
+          // you on a scooter (drawn 2x size so you can spot it next to the bus)
           const x = you.pos.x;
           const k = 2;
-          r.line(x - 1.2 * k, -5.6, x + 1.2 * k, -5.6, "#111827", 4);
-          r.line(x + 1.0 * k, -5.6, x + 1.0 * k, -5.6 + 2.6 * k, "#111827", 3);
-          r.circle(x - 1.2 * k, -5.8, 0.35 * k, "#111827");
-          r.circle(x + 1.2 * k, -5.8, 0.35 * k, "#111827");
-          r.rect(x - 0.4 * k, -5.4, 0.8 * k, 2.4 * k, "#D55E00", undefined, 3);
-          r.circle(x, -5.4 + 2.9 * k, 0.45 * k, "#fcd34d", "#92400e");
+          r.line(x - 1.2 * k, -5.55, x + 1.2 * k, -5.55, "#334155", 5);
+          r.line(x + 1.0 * k, -5.55, x + 1.1 * k, -5.55 + 2.4 * k, "#475569", 3);
+          r.line(x + 0.8 * k, -5.55 + 2.4 * k, x + 1.4 * k, -5.55 + 2.4 * k, "#475569", 3);
+          tyre(r, x - 1.2 * k, -5.8, 0.35 * k, you.pos.x / (0.35 * k));
+          tyre(r, x + 1.2 * k, -5.8, 0.35 * k, you.pos.x / (0.35 * k));
+          person(r, x, -5.45, 1.75 * k, { shirt: "#D55E00", pants: "#334155", pose: "push" });
           if (ov.velocity) {
-            r.arrow(new Vec2(x, 0.6), you.vel, 2.2, COLORS.velocity, "v");
+            r.arrow(new Vec2(x, 1.0), you.vel, 2.2, COLORS.velocity, "v");
             r.arrow(new Vec2(bx - 6, 3), bus.vel, 2.2, COLORS.gravity, "v_bus");
           }
           r.hud([`t = ${f(sim.t, 2)} s`, `you ${f(you.pos.x, 1)} m · bus ${f(bus.pos.x, 1)} m`]);
@@ -571,21 +621,31 @@ const tossToTheWindow = defineLevel((v) => {
           return { success: false, message: `Peaked at ${f(top, 2)} m, ${f(Math.abs(d), 2)} m ${d > 0 ? "above" : "below"} the window. ${d > 0 ? "Softer." : "Harder."}` };
         },
         draw(r, ov) {
-          r.clear("#dbeafe", "#f8fafc");
-          r.rect(-12, -1.5, 24, 1.5, "#a3a3a3");
-          r.rect(2, -0.01, 6, H + 2.5, "#d6d3d1", "#78716c");
-          for (let y = 1.5; y < H + 2; y += 3) r.rect(3, y, 1.4, 1.6, "#cbd5e1", "#64748b");
-          r.rect(2.2, H - 0.8, 2, 1.6, "#fde68a", "#92400e");
+          const hz = r.sy(-1.5);
+          sky(r, hz, "day");
+          skylineScreen(r, hz, Math.min(r.h * 0.35, hz * 0.5));
+          treeScreen(r.ctx, r.sx(-7), hz, Math.max(10, r.scale * 0.9));
+          ground(r, -1.5, "grass");
+          // apartment building with a row of windows on each floor
+          r.rect(2, -1.51, 6, H + 2.5, "#e9a98b", "#9a5b3c", 4);
+          r.rect(1.8, H + 0.9, 6.4, 0.25, "#c97b5a", undefined, 2);
+          for (let y = 1.5; y < H + 2; y += 3) for (let x = 3; x < 7.5; x += 2.3) r.rect(x, y, 1.4, 1.6, "#cfe3f5", "#7c5a46", 2);
+          r.rect(4.6, -1.5, 1.4, 2.2, "#6b4a3a", undefined, 2);
+          // the open window with your friend in it
+          r.rect(2.2, H - 0.8, 2, 1.6, "#fde68a", "#92400e", 2);
+          r.rect(2.7, H - 0.75, 0.9, 0.7, "#2563eb", undefined, 3);
+          r.circle(3, H + 0.2, 0.35, "#f1c27d");
+          r.circle(3, H + 0.32, 0.3, "rgba(0,0,0,0)");
           r.line(-6, H, 2, H, "#e63946", 2, [6, 4]);
-          r.text("window", -6.2, H, { size: 12, bold: true, color: "#b91c1c", align: "right" });
-          r.circle(3, H + 0.2, 0.35, "#fcd34d", "#92400e");
-          r.vruler(0, H + 2, -3, H > 12 ? 4 : 2);
+          r.text("window", -6.2, H, { size: 12, bold: true, color: "#b91c1c", align: "right", bg: "rgba(255,255,255,.9)" });
+          r.vruler(0, H + 2, -3, H > 12 ? 4 : 2, "m", "#334155");
           // you
-          r.rect(-0.4, -1.5, 0.8, 1.2, "#1e40af", undefined, 3);
-          r.rect(-0.45, -0.3, 0.9, 0.4, "#0ea5e9", undefined, 3);
+          person(r, 0, -1.5, 1.75, { shirt: "#0ea5e9", pants: "#1e40af", pose: sim.t > 0 ? "push" : "stand" });
           if (ov.trail) for (const s of strobe.pts) r.circle(s.x + 0.6, s.y, 0.12, "rgba(213,94,0,.6)", undefined, 4);
           const P = keys.pos;
-          r.rect(P.x - 0.2, P.y - 0.1, 0.4, 0.2, "#facc15", "#713f12", 2);
+          // key ring + key
+          r.circle(P.x - 0.12, P.y, 0.12, "rgba(0,0,0,0)", "#a16207", 4);
+          r.rect(P.x - 0.02, P.y - 0.07, 0.3, 0.14, "#facc15", "#713f12", 2);
           if (ov.velocity) r.arrow(P.add(new Vec2(-0.8, 0)), keys.vel, 6, COLORS.velocity, "v");
           if (ov.forces && !done) r.arrow(P.add(new Vec2(0.8, 0)), new Vec2(0, -G), 6, COLORS.acceleration, "a = −g");
           r.hud([`t = ${f(sim.t, 2)} s`, `height ${f(P.y, 2)} m   v = ${f(keys.vel.y, 2)} m/s`]);
