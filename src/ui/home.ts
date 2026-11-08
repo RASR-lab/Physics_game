@@ -2,10 +2,11 @@ import { CHAPTERS, ALL_LEVELS } from "../levels";
 import { getLevel, resetProgress, totalStars, tutorialDone } from "../game/progress";
 import { TUTORIALS } from "../tutorials";
 import { h, stars } from "./dom";
+import { MAX_STARS } from "./level";
 
 export function renderHome(root: HTMLElement) {
   const total = totalStars();
-  const max = ALL_LEVELS.length * 3;
+  const max = ALL_LEVELS.length * MAX_STARS;
   root.replaceChildren(
     h(
       "header.hero",
@@ -17,8 +18,9 @@ export function renderHome(root: HTMLElement) {
       "section.howto",
       { "aria-label": "How to play" },
       step("1", "Predict", "Guess first."),
-      step("2", "Play", "Run the experiment."),
-      step("3", "Explain", "Say why. Earn ⭐."),
+      step("2", "Equation", "Pick it from your sheet."),
+      step("3", "Play", "Run the experiment."),
+      step("4", "Explain", "Say why. Earn ⭐."),
       step("🎓", "New?", "Start with the tutorial."),
     ),
     h(
@@ -57,7 +59,7 @@ export function renderHome(root: HTMLElement) {
                   { href: `#level-${lv.id}` },
                   h("span.lv-id", {}, lv.id),
                   h("span.lv-title", {}, lv.title),
-                  pr?.completed ? stars(pr.stars) : h("span.new", {}, "Play"),
+                  pr?.completed ? stars(pr.stars, MAX_STARS) : h("span.new", {}, "Play"),
                 ),
               );
             }),

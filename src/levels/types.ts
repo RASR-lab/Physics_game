@@ -74,6 +74,11 @@ export interface Level {
   controls: ControlDef[];
   predict: MCQ;
   explain: MCQ;
+  /**
+   * "Pick the equation": options are ids into EQUATIONS (from the PHYS 211 sheet).
+   * Filled in by defineLevel from PICK_EQUATION, so level files don't set it.
+   */
+  pickEq?: MCQ;
   /** Progressive hints: nudge → concept → worked step. */
   hints: string[];
   journal: { title: string; tex: string; note: string };

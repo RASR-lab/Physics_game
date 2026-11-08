@@ -3,6 +3,7 @@ import { DT } from "../src/physics/core";
 import { ALL_LEVELS } from "../src/levels";
 import type { Level } from "../src/levels/types";
 import { Vary } from "../src/levels/util";
+import { EQUATIONS, PICK_EQUATION } from "../src/levels/equations";
 
 /** Every level is checked with its textbook numbers and with this many random versions. */
 const SEEDS = Array.from({ length: 30 }, (_, i) => 1 + i * 7919);
@@ -71,6 +72,34 @@ describe.each(ALL_LEVELS.map((d) => [d.id, d] as const))("level %s", (_id, def) 
       expect(c.value).toBeLessThanOrEqual(c.max);
     }
     expect(lv.hints.length).toBe(3);
+  });
+
+  it.each(variants(SEEDS.slice(0, 10)))("%s: has a 4-option 'Pick the equation' step from the sheet", (name, v) => {
+    const lv = def.make(v);
+    const q = lv.pickEq!;
+    expect(q, `${lv.id} ${name}`).toBeDefined();
+    expect(q.options.length).toBe(4);
+    expect(new Set(q.options).size, `${lv.id}: repeated equation`).toBe(4);
+    for (const id of q.options) expect(EQUATIONS, `${lv.id}: unknown equation ${id}`).toHaveProperty(id);
+    expect(q.options[q.correct]).toBe(PICK_EQUATION[lv.id].correct);
+    expect(q.why.length).toBeGreaterThan(20);
+  });
+});
+
+describe("Pick the equation", () => {
+  it("every level has exactly one entry, and nothing extra", () => {
+    expect(Object.keys(PICK_EQUATION).sort()).toEqual(ALL_LEVELS.map((d) => d.id).sort());
+  });
+
+  it("the right answer moves around between plays", () => {
+    const positions = new Set(SEEDS.map((s) => ALL_LEVELS[0].make(Vary.seeded(s)).pickEq!.correct));
+    expect(positions.size).toBeGreaterThan(2);
+  });
+
+  it("across all levels, the right answer isn't always in the same slot (textbook version)", () => {
+    const counts = [0, 0, 0, 0];
+    for (const d of ALL_LEVELS) counts[d.make(Vary.fixed()).pickEq!.correct]++;
+    expect(Math.max(...counts)).toBeLessThan(ALL_LEVELS.length * 0.6);
   });
 });
 

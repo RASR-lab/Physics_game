@@ -1,9 +1,11 @@
 /** Local save data. Wrapped in try/catch: storage can be unavailable (private mode, embeds). */
 export interface LevelProgress {
   completed: boolean;
-  stars: number; // 0–3: success, correct prediction, correct explanation
+  stars: number; // 0–4: success, correct prediction, correct equation, correct explanation
   predictedCorrect: boolean;
   explainedCorrect: boolean;
+  /** Picked the right equation from the sheet (added with the 4-star scoring). */
+  equationCorrect?: boolean;
   attempts: number;
   hintsUsed: number;
 }
