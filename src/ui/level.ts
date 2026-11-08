@@ -5,11 +5,15 @@ import { DT, FixedStepper } from "../physics/core";
 import { Renderer } from "../render/renderer";
 import { LiveGraph } from "../render/graph";
 import { getLevel, recordLevel, tutorialDone } from "../game/progress";
+import { EQUATIONS, type EqId, type SheetEquation } from "../levels/equations";
 import { TUTORIALS } from "../tutorials";
 import { startTour } from "./tour";
 import { h, stars, tex, texEl } from "./dom";
 
-type Phase = "predict" | "play" | "explain" | "done";
+type Phase = "predict" | "equation" | "play" | "explain" | "done";
+
+/** Stars per level: goal, prediction, equation, explanation. */
+export const MAX_STARS = 4;
 
 /** Remote control used by the guided tutorial to demonstrate the level. */
 export interface LevelAPI {
@@ -18,6 +22,9 @@ export interface LevelAPI {
   prediction(): number;
   selectPrediction(i: number): void;
   lockPrediction(): void;
+  /** Answer the "Pick the equation" step (index into level.pickEq.options). */
+  answerEquation(i: number): void;
+  equationAnswer(): number;
   setParam(key: string, v: number): void;
   launch(): void;
   isRunning(): boolean;
@@ -43,6 +50,8 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
   let prediction = -1;
   let predictionRevealed = false;
   let explainAnswer = -1;
+  let equationAnswer = -1;
+  const pickEq = level.pickEq!;
   let attempts = 0;
   let hintsShown = 0;
   let succeeded = false;
@@ -94,6 +103,7 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
   }
 
   const predictBox = h("section.step", { "data-tour": "predict" });
+  const equationBox = h("section.step", { "data-tour": "equation" });
   const playBox = h("section.step", { "data-tour": "play" });
   const explainBox = h("section.step", { "data-tour": "explain" });
   const doneBox = h("section.step");
@@ -106,7 +116,7 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
       { style: { "--world": chapter.color } },
       h("a.btn.ghost", { href: "#map" }, "← Map"),
       h("div.bar-mid", {}, h("span.chip", {}, `Ch ${chapter.number} · ${chapter.world}`), h("h1.bar-title", {}, `${level.id}  ${level.title}`)),
-      prev?.completed ? stars(prev.stars) : h("span"),
+      prev?.completed ? stars(prev.stars, MAX_STARS) : h("span"),
     ),
     h(
       "main.level",
@@ -137,6 +147,7 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
             : null,
         ),
         predictBox,
+        equationBox,
         playBox,
         explainBox,
         doneBox,
@@ -175,35 +186,86 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
 
   function lockPrediction() {
     if (phase !== "predict" || prediction < 0) return;
-    phase = "play";
+    phase = "equation";
     renderPredict();
+    renderEquation();
     renderPlay();
+    updatePanel();
+  }
+
+  /** Step 2: pick the equation from the sheet. One try; feedback either way, then Play unlocks. */
+  function renderEquation() {
+    const q = pickEq;
+    const head = h("h2", {}, h("span.step-n", {}, "2"), "Pick the equation");
+    if (phase === "predict") {
+      equationBox.className = "step pending";
+      equationBox.replaceChildren(head, h("p.small", {}, "Predict first."));
+      return;
+    }
+    const body: Node[] = [head, h("p.q", {}, q.prompt)];
+    if (equationAnswer < 0) {
+      equationBox.className = "step active";
+      let pick = -1;
+      const submit = h("button.btn.primary", { disabled: true, onclick: () => answerEquation(pick) }, "Check");
+      body.push(
+        eqChoices(q.options as EqId[], (i) => {
+          pick = i;
+          submit.disabled = false;
+        }),
+        submit,
+      );
+    } else {
+      equationBox.className = "step complete";
+      const ok = equationAnswer === q.correct;
+      const right: SheetEquation = EQUATIONS[q.options[q.correct] as EqId];
+      body.push(
+        h(
+          "div",
+          { className: `verdict ${ok ? "ok" : "no"}` },
+          h("strong", {}, ok ? "✓ Right equation!" : "✗ The one you need:"),
+          texEl(right.tex, true, "tex eq-answer"),
+          h("p.small", {}, `${right.sheet}${right.from ? ` · ${right.from}` : ""}`),
+          h("p", {}, q.why),
+        ),
+      );
+    }
+    equationBox.replaceChildren(...body);
+  }
+
+  function answerEquation(i: number) {
+    if (phase !== "equation" || i < 0 || equationAnswer >= 0) return;
+    equationAnswer = i;
+    phase = "play";
+    renderEquation();
+    renderPlay();
+    updatePanel();
     launchBtn.disabled = false;
     launchBtn.focus();
   }
 
   function renderPlay() {
     const active = phase === "play";
-    playBox.className = `step ${phase === "predict" ? "pending" : active ? "active" : "complete"}`;
-    const body: Node[] = [h("h2", {}, h("span.step-n", {}, "2"), "Play")];
-    if (phase === "predict") body.push(h("p.small", {}, "Predict first."));
+    const before = phase === "predict" || phase === "equation";
+    playBox.className = `step ${before ? "pending" : active ? "active" : "complete"}`;
+    const body: Node[] = [h("h2", {}, h("span.step-n", {}, "3"), "Play")];
+    if (before) body.push(h("p.small", {}, phase === "predict" ? "Predict first." : "Pick the equation first."));
     else {
       body.push(controlsBox, h("div.row", {}, h("button.btn.primary", { onclick: () => launch(), disabled: running }, "▶ Launch"), hintBtn), outcomeBox, hintList);
       if (attempts > 0) body.push(h("p.small", {}, `Attempts: ${attempts}`));
     }
     playBox.replaceChildren(...body);
-    sliderInputs.forEach((i) => (i.disabled = phase === "predict" || running));
+    sliderInputs.forEach((i) => (i.disabled = before || running));
   }
 
   function renderExplain() {
-    if (phase === "predict" || phase === "play") {
+    if (phase === "predict" || phase === "equation" || phase === "play") {
       explainBox.className = "step pending";
-      explainBox.replaceChildren(h("h2", {}, h("span.step-n", {}, "3"), "Explain"), h("p.small", {}, "Win to unlock."));
+      explainBox.replaceChildren(h("h2", {}, h("span.step-n", {}, "4"), "Explain"), h("p.small", {}, "Win to unlock."));
       return;
     }
     const q = level.explain;
     explainBox.className = `step ${phase === "explain" ? "active" : "complete"}`;
-    const body: Node[] = [h("h2", {}, h("span.step-n", {}, "3"), "Explain"), h("p.q", {}, q.prompt)];
+    const body: Node[] = [h("h2", {}, h("span.step-n", {}, "4"), "Explain"), h("p.q", {}, q.prompt)];
     if (explainAnswer < 0) {
       let pick = -1;
       const submit = h("button.btn.primary", { disabled: true, onclick: () => answerExplain(pick) }, "Check");
@@ -221,12 +283,14 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
     if (i < 0) return;
     explainAnswer = i;
     phase = "done";
-    const nStars = 1 + (prediction === level.predict.correct ? 1 : 0) + (i === level.explain.correct ? 1 : 0);
+    const eqOk = equationAnswer === pickEq.correct;
+    const nStars = 1 + (prediction === level.predict.correct ? 1 : 0) + (eqOk ? 1 : 0) + (i === level.explain.correct ? 1 : 0);
     recordLevel(level.id, {
       completed: true,
       stars: nStars,
       predictedCorrect: prediction === level.predict.correct,
       explainedCorrect: i === level.explain.correct,
+      equationCorrect: eqOk,
       attempts,
       hintsUsed: hintsShown,
     });
@@ -244,12 +308,13 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
     doneBox.className = "step done-card";
     doneBox.replaceChildren(
       h("h2", {}, "Level complete! 🎉"),
-      h("div.star-row", {}, stars(nStars)),
+      h("div.star-row", {}, stars(nStars, MAX_STARS)),
       h(
         "ul.star-why",
         {},
         h("li", {}, "★ Goal"),
         h("li", { className: prediction === level.predict.correct ? "" : "miss" }, `${prediction === level.predict.correct ? "★" : "☆"} Guess`),
+        h("li", { className: equationAnswer === pickEq.correct ? "" : "miss" }, `${equationAnswer === pickEq.correct ? "★" : "☆"} Equation`),
         h("li", { className: explainAnswer === level.explain.correct ? "" : "miss" }, `${explainAnswer === level.explain.correct ? "★" : "☆"} Explain`),
       ),
       h("div.journal-unlock", {}, h("p.small", {}, "📓 New in your Journal"), h("strong", {}, level.journal.title), texEl(level.journal.tex, true), h("p", {}, level.journal.note)),
@@ -269,6 +334,7 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
     prediction = -1;
     predictionRevealed = false;
     explainAnswer = -1;
+    equationAnswer = -1;
     attempts = 0;
     succeeded = false;
     hintsShown = 0;
@@ -292,6 +358,7 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
 
   function renderAll() {
     renderPredict();
+    renderEquation();
     renderPlay();
     renderExplain();
     renderDone();
@@ -317,11 +384,11 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
     pauseBtn.textContent = "❚❚ Pause";
     preview();
     if (phase !== "predict") renderPlay();
-    launchBtn.disabled = phase === "predict";
+    launchBtn.disabled = phase === "predict" || phase === "equation";
   }
 
   function launch() {
-    if (phase === "predict") return;
+    if (phase === "predict" || phase === "equation") return;
     sim = level.create(params);
     graph?.clear();
     stepper.reset();
@@ -374,7 +441,8 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
 
   function updatePanel() {
     readoutBox.replaceChildren(...sim.readouts().flatMap((r) => [h("dt", {}, r.label), h("dd", {}, r.value)]));
-    eqBox.innerHTML = tex(sim.equation(), false);
+    if (phase === "predict" || phase === "equation") eqBox.textContent = "Shown after you pick the equation (step 2).";
+    else eqBox.innerHTML = tex(sim.equation(), false);
   }
 
   function frame(now: number) {
@@ -400,7 +468,7 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
 
   const onKey = (e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement && e.target.type === "number") return;
-    if (e.key === " " && phase !== "predict" && document.activeElement?.tagName !== "BUTTON") {
+    if (e.key === " " && phase !== "predict" && phase !== "equation" && document.activeElement?.tagName !== "BUTTON") {
       e.preventDefault();
       running ? togglePause() : launch();
     }
@@ -428,6 +496,8 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
       renderPredict();
     },
     lockPrediction,
+    answerEquation,
+    equationAnswer: () => equationAnswer,
     setParam: (k, v) => setters[k]?.(v),
     launch,
     isRunning: () => running,
@@ -460,6 +530,21 @@ function mcq(q: MCQ, selected: number, onPick: (i: number) => void) {
         h("span", {}, opt),
       ),
     ),
+  );
+}
+
+/** Four equations to choose from, typeset with KaTeX. */
+function eqChoices(ids: EqId[], onPick: (i: number) => void) {
+  const name = `eq${Math.random().toString(36).slice(2)}`;
+  return h(
+    "fieldset.mcq.eq-choices",
+    {},
+    h("legend.sr", {}, "Equation choices"),
+    ...ids.map((id, i) => {
+      const e = EQUATIONS[id];
+      const label = h("label.opt.eq-opt", {}, h("input", { type: "radio", name, onchange: () => onPick(i), "aria-label": e.tex }), texEl(e.tex, false, "tex"));
+      return label;
+    }),
   );
 }
 

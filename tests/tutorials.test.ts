@@ -33,6 +33,12 @@ describe("chapter tutorials", () => {
       expect(sim.outcome().success).toBe(false);
     });
 
+    it("includes the Pick-the-equation step right after the prediction", () => {
+      const i = tut.steps.findIndex((s) => s.target === "predict");
+      expect(tut.steps[i + 1].target).toBe("equation");
+      expect(tut.steps[i + 1].think?.length).toBeGreaterThanOrEqual(2);
+    });
+
     it("ends with a thinking checklist", () => {
       const last = tut.steps[tut.steps.length - 1];
       expect(last.think?.length).toBeGreaterThanOrEqual(3);

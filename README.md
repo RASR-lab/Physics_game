@@ -1,7 +1,7 @@
 # Physics Quest (prototype)
 
 A browser game that teaches intro physics to **non-physics majors** through a
-**Predict → Play → Explain** loop. Students commit to a prediction, set real
+**Predict → Pick the equation → Play → Explain** loop. Students commit to a prediction, set real
 physical quantities (mass, angle, force…), watch an accurate simulation with
 force arrows, strobe "ghosts", live graphs and the equation with today's numbers
 plugged in, then explain what happened.
@@ -18,6 +18,13 @@ This prototype covers **eight chapters of the PHYS 211 equation sheet**, with 40
 | 11 · Rotational Dynamics & Equilibrium | Torque Tower | Seesaw Balance · Rusty Bolt · Skater Spin · Swinging Door · Well Bucket |
 | 12 · Gravity | Orbit Outpost | Half Weight · Into Orbit · Tug of War in Space · Sky Tracker · Moon Hop |
 | 13 · Oscillations | Pendulum Park | Grandfather Clock · Smooth Ride · Match the Wave · Photogate Speed · Weigh an Astronaut |
+
+**Pick the equation.** After guessing, students choose which of 4 equations from the
+PHYS 211 equation sheet gets them to the answer (`src/levels/equations.ts`). The distractors
+are equations students often reach for by mistake (mgh where gravity changes, Weight = mg when
+something accelerates, Work = Fd cos θ instead of τ = rF sin θ…). A wrong pick shows the right
+equation, where it is on the sheet, and why. The Data panel keeps its plugged-in equation
+hidden until this step is done, and the choices are shuffled every play.
 
 **Every play is a new problem.** Each time a level opens, the numbers in the story (speeds,
 distances, masses, targets…) move by up to ±20%, and the Predict and Explain answer options are
@@ -36,8 +43,8 @@ Each level targets a classic misconception: heavier objects fall faster, motion
 needs a force, a bigger mass pushes harder, a centrifugal force flings you outward,
 everyone on a carousel moves at the same speed, there's no gravity in orbit, a
 heavier pendulum swings faster.
-Each level has 3 progressive hints and awards up to 3 stars (goal reached,
-correct prediction, correct explanation). It also unlocks an entry in the
+Each level has 3 progressive hints and awards up to 4 stars (goal reached,
+correct prediction, correct equation, correct explanation). It also unlocks an entry in the
 **Physics Journal** for exam review.
 
 ## Run it
@@ -79,7 +86,8 @@ Phaser was skipped for this prototype. Every scene is a single 2D diagram, so pl
 
 ## Adding a level
 
-Levels are recipes: `defineLevel((v) => ({ ...Level }))` in a chapter file (see `src/levels/util.ts`).
+Levels are recipes: `defineLevel((v) => ({ ...Level }))` in a chapter file (see `src/levels/util.ts`),
+plus one entry in `PICK_EQUATION` (`src/levels/equations.ts`): the right sheet equation, 3 distractors and a why.
 Draw every story number from `v`, e.g. `const V0 = v.num(20, 0)` (20 ± 20%, whole numbers), and
 compute the `solution`, `wrong` answer, hints and goal from those numbers (`snap()` puts an answer
 on a slider's grid). `Vary.fixed()` returns the textbook values. The test suite then checks

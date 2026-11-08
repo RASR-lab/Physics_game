@@ -1,4 +1,5 @@
 import type { ControlDef, Level, LevelDef, MCQ } from "./types";
+import { DEFAULT_EQ_PROMPT, PICK_EQUATION } from "./equations";
 import { Vec2 } from "../physics/vec2";
 
 /** Format a number with fixed decimals (and a real minus sign for display). */
@@ -76,11 +77,13 @@ export class Vary {
     return roundTo(Math.round(x / step) * step, dec);
   }
   /** Shuffle a multiple-choice question's options, keeping track of the right answer. */
-  shuffle(q: MCQ): MCQ {
-    if (!this.rnd) return q;
+  shuffle(q: MCQ, always = false): MCQ {
+    if (!this.rnd && !always) return q;
+    // the textbook version shuffles with a fixed seed, so it is the same every time
+    const rnd = this.rnd ?? seeded(q.options.join("").length * 7919 + 13);
     const order = q.options.map((_, i) => i);
     for (let i = order.length - 1; i > 0; i--) {
-      const j = Math.floor(this.rnd() * (i + 1));
+      const j = Math.floor(rnd() * (i + 1));
       [order[i], order[j]] = [order[j], order[i]];
     }
     return { ...q, options: order.map((i) => q.options[i]), correct: order.indexOf(q.correct) };
@@ -114,6 +117,9 @@ export function bestOnGrid(c: Pick<ControlDef, "min" | "max" | "step">, err: (x:
  */
 export function defineLevel(build: (v: Vary) => Level): LevelDef {
   const base = build(Vary.fixed());
+  const pe = PICK_EQUATION[base.id];
+  if (!pe) throw new Error(`Level ${base.id} has no "Pick the equation" entry in equations.ts`);
+  const pickEq: MCQ = { prompt: pe.prompt ?? DEFAULT_EQ_PROMPT, options: [pe.correct, ...pe.distractors], correct: 0, why: pe.why };
   return {
     id: base.id,
     chapter: base.chapter,
@@ -121,7 +127,8 @@ export function defineLevel(build: (v: Vary) => Level): LevelDef {
     journal: base.journal,
     make(v: Vary): Level {
       const b = build(v);
-      return { ...b, predict: v.shuffle(b.predict), explain: v.shuffle(b.explain) };
+      // the right equation is listed first in the data, so always shuffle (even the textbook version)
+      return { ...b, predict: v.shuffle(b.predict), explain: v.shuffle(b.explain), pickEq: v.shuffle(pickEq, true) };
     },
   };
 }

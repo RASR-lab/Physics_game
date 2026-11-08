@@ -190,3 +190,8 @@ h1, h2, h3 { margin: 0; line-height: 1.2; }
 .tour-nav { display: flex; justify-content: space-between; gap: 0.5rem; }
 
 .new-numbers { margin-top: 0.5rem; font-size: 0.85rem; }
+
+/* Pick the equation */
+.eq-choices .eq-opt { align-items: center; }
+.eq-choices .eq-opt .tex { overflow-x: auto; font-size: 1.05rem; padding: 0.15rem 0; }
+.eq-answer { margin: 0.4rem 0; overflow-x: auto; }
