@@ -188,3 +188,5 @@ h1, h2, h3 { margin: 0; line-height: 1.2; }
 .tour-wait { color: var(--accent); font-weight: 600; font-size: 0.88rem !important; min-height: 0; }
 .tour-wait:empty { display: none; }
 .tour-nav { display: flex; justify-content: space-between; gap: 0.5rem; }
+
+.new-numbers { margin-top: 0.5rem; font-size: 0.85rem; }

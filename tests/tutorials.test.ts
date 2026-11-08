@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DT } from "../src/physics/core";
 import { CHAPTERS, findLevel } from "../src/levels";
 import { TUTORIALS, TOUR_TARGETS } from "../src/tutorials";
+import { Vary } from "../src/levels/util";
 
 describe("chapter tutorials", () => {
   it("every chapter has a tutorial", () => {
@@ -19,7 +20,8 @@ describe("chapter tutorials", () => {
     });
 
     it("demo attempt really misses, so 'learn from a miss' is true", () => {
-      const lv = findLevel(tut.levelId)!;
+      // tutorials always use the textbook numbers
+      const lv = findLevel(tut.levelId)!.make(Vary.fixed());
       for (const c of lv.controls) {
         const v = tut.demo[c.key];
         expect(v, c.key).toBeGreaterThanOrEqual(c.min);

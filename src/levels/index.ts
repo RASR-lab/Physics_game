@@ -1,4 +1,4 @@
-import type { Chapter, Level } from "./types";
+import type { Chapter, LevelDef } from "./types";
 import { chapter2 } from "./ch2-kinematics";
 import { chapter3 } from "./ch3-vectors";
 import { chapter5 } from "./ch5-newton";
@@ -76,13 +76,13 @@ export const CHAPTERS: Chapter[] = [
   },
 ];
 
-export const ALL_LEVELS: Level[] = CHAPTERS.flatMap((c) => c.levels);
+export const ALL_LEVELS: LevelDef[] = CHAPTERS.flatMap((c) => c.levels);
 
-export function findLevel(id: string): Level | undefined {
+export function findLevel(id: string): LevelDef | undefined {
   return ALL_LEVELS.find((l) => l.id === id);
 }
 
-export function nextLevel(id: string): Level | undefined {
+export function nextLevel(id: string): LevelDef | undefined {
   const i = ALL_LEVELS.findIndex((l) => l.id === id);
   return i >= 0 ? ALL_LEVELS[i + 1] : undefined;
 }

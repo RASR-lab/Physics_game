@@ -1,4 +1,5 @@
-import type { Level, MCQ, Outcome, Overlays, Sim } from "../levels/types";
+import type { Level, LevelDef, MCQ, Outcome, Overlays, Sim } from "../levels/types";
+import { Vary } from "../levels/util";
 import { CHAPTERS, nextLevel } from "../levels";
 import { DT, FixedStepper } from "../physics/core";
 import { Renderer } from "../render/renderer";
@@ -23,8 +24,16 @@ export interface LevelAPI {
   lastOutcome(): Outcome | null;
 }
 
-/** Mounts a level screen. Returns a cleanup function. Pass a chapter number to run its tutorial. */
-export function renderLevel(root: HTMLElement, level: Level, opts: { tutorialChapter?: number } = {}): () => void {
+export interface LevelOpts {
+  /** Run this chapter's guided tutorial (uses the textbook numbers so the script stays accurate). */
+  tutorialChapter?: number;
+  /** Re-open the level with fresh random numbers. */
+  restart?: () => void;
+}
+
+/** Mounts a level screen. Returns a cleanup function. Each visit gets new numbers (±20%) and shuffled options. */
+export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = {}): () => void {
+  const level: Level = def.make(opts.tutorialChapter !== undefined ? Vary.fixed() : Vary.random());
   const chapter = CHAPTERS.find((c) => c.number === level.chapter)!;
   const params: Record<string, number> = Object.fromEntries(level.controls.map((c) => [c.key, c.value]));
   const ov: Overlays = { forces: true, velocity: true, trail: true };
@@ -123,6 +132,9 @@ export function renderLevel(root: HTMLElement, level: Level, opts: { tutorialCha
           tutorialBanner(),
           h("p", {}, level.hook),
           h("p.goal", {}, h("strong", {}, "Goal: "), level.goal),
+          opts.restart && opts.tutorialChapter === undefined
+            ? h("button.btn.ghost.new-numbers", { onclick: () => opts.restart!(), title: "Same situation, different numbers" }, "🎲 New numbers")
+            : null,
         ),
         predictBox,
         playBox,
@@ -245,7 +257,7 @@ export function renderLevel(root: HTMLElement, level: Level, opts: { tutorialCha
         "div.row",
         {},
         nxt ? h("a.btn.primary", { href: `#level-${nxt.id}` }, `Next: ${nxt.title} →`) : h("a.btn.primary", { href: "#journal" }, "Open the Journal"),
-        h("button.btn.secondary", { onclick: () => replay() }, "Play again"),
+        h("button.btn.secondary", { onclick: () => (opts.restart ? opts.restart() : replay()) }, "Play again (new numbers)"),
         h("a.btn.ghost", { href: "#map" }, "Map"),
       ),
     );

@@ -6,18 +6,24 @@ physical quantities (mass, angle, force…), watch an accurate simulation with
 force arrows, strobe "ghosts", live graphs and the equation with today's numbers
 plugged in, then explain what happened.
 
-This prototype covers **eight chapters of the PHYS 211 equation sheet**:
+This prototype covers **eight chapters of the PHYS 211 equation sheet**, with 40 levels:
 
 | Chapter | World | Levels |
 |---|---|---|
-| 2 · Kinematics | Motion Valley | Stop at the Line · The Two-Second Drop · Match the Graph |
-| 3 · Vectors | Vector Canyon | Drone Delivery · River Crossing · Canyon Supply Drop |
-| 5 · Newton's Laws | Newton Station | Coasting in Space · Elevator Scale · Skater Push-Off |
-| 6 · Newton's Laws: Applications | Friction Peaks | Will It Slide? · Spring Scale · Take the Curve |
-| 10 · Rotational Kinematics | Spin City | Pottery Wheel · Carousel Riders · Rolling Race |
-| 11 · Rotational Dynamics & Equilibrium | Torque Tower | Seesaw Balance · Rusty Bolt · Skater Spin |
-| 12 · Gravity | Orbit Outpost | Half Weight · Into Orbit · Tug of War in Space |
-| 13 · Oscillations | Pendulum Park | Grandfather Clock · Smooth Ride · Match the Wave |
+| 2 · Kinematics | Motion Valley | Stop at the Line · The Two-Second Drop · Match the Graph · Catch the Bus · Toss to the Window |
+| 3 · Vectors | Vector Canyon | Drone Delivery · River Crossing · Canyon Supply Drop · Hiking Detour · Off the Table |
+| 5 · Newton's Laws | Newton Station | Coasting in Space · Elevator Scale · Skater Push-Off · Coupling Strength · Pulley Drop |
+| 6 · Newton's Laws: Applications | Friction Peaks | Will It Slide? · Spring Scale · Take the Curve · Steady Push · Banked Curve |
+| 10 · Rotational Kinematics | Spin City | Pottery Wheel · Carousel Riders · Rolling Race · Bike Gears · Centrifuge |
+| 11 · Rotational Dynamics & Equilibrium | Torque Tower | Seesaw Balance · Rusty Bolt · Skater Spin · Swinging Door · Well Bucket |
+| 12 · Gravity | Orbit Outpost | Half Weight · Into Orbit · Tug of War in Space · Sky Tracker · Moon Hop |
+| 13 · Oscillations | Pendulum Park | Grandfather Clock · Smooth Ride · Match the Wave · Photogate Speed · Weigh an Astronaut |
+
+**Every play is a new problem.** Each time a level opens, the numbers in the story (speeds,
+distances, masses, targets…) move by up to ±20%, and the Predict and Explain answer options are
+shuffled. Hints, worked answers, graphs and success checks are all recomputed from the new
+numbers. "🎲 New numbers" and "Play again" deal a fresh version. The guided tutorials always use
+the textbook numbers so their scripted walkthrough stays accurate.
 
 Each world opens with a **guided tutorial** (🎓 on the map, or `#tutorial-2`, `-3`, `-5`, `-6`, `-10`, `-11`, `-12`, `-13`).
 It runs inside the chapter's first level. A spotlight walks through the screen and the
@@ -63,7 +69,7 @@ Phaser was skipped for this prototype. Every scene is a single 2D diagram, so pl
 - Spring energy stays within 0.5% over 60 simulated seconds; momentum is conserved in a push-off.
 - Rolling, torque, gravity and oscillation formulas match the equation sheet; a 400 km orbit keeps its radius within 0.1% and its energy within 0.01% at the in-game time-lapse step; a spring's measured period matches 2π√(m/k) within 0.1%.
 - Every tutorial spotlights only real screen elements, and its demo attempt really fails (so "learn from the miss" is true).
-- **Every level** succeeds with its reference solution and fails with a known wrong answer and with the default slider values.
+- **Every level, in 31 versions** (the textbook numbers plus 30 random seeds), succeeds with its reference solution, fails with a known wrong answer and with the default slider values, keeps every answer on its slider's grid, and has no duplicate or broken (NaN) text after shuffling.
 
 ### Design notes
 
@@ -73,9 +79,11 @@ Phaser was skipped for this prototype. Every scene is a single 2D diagram, so pl
 
 ## Adding a level
 
-Add an object that implements `Level` (see `src/levels/types.ts`) to a chapter
-file. Give it a `solution` and a `wrong` input set. The test suite then checks
-automatically that the level is solvable and not trivially won.
+Levels are recipes: `defineLevel((v) => ({ ...Level }))` in a chapter file (see `src/levels/util.ts`).
+Draw every story number from `v`, e.g. `const V0 = v.num(20, 0)` (20 ± 20%, whole numbers), and
+compute the `solution`, `wrong` answer, hints and goal from those numbers (`snap()` puts an answer
+on a slider's grid). `Vary.fixed()` returns the textbook values. The test suite then checks
+automatically, across many random versions, that the level is solvable and not trivially won.
 
 ## Next steps (from the project plan)
 

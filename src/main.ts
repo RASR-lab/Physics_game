@@ -20,7 +20,7 @@ function route() {
     const lv = findLevel(m[1]);
     if (lv) {
       document.title = `${lv.title} · Physics Quest`;
-      cleanup = renderLevel(app, lv);
+      cleanup = renderLevel(app, lv, { restart: route });
       return;
     }
   }
