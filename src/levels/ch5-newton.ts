@@ -461,7 +461,7 @@ const couplingStrength = defineLevel((v) => {
     hints: [
       "The rope only pulls the back cart.",
       "a = F/(m₁+m₂), and T = m₂·a.",
-      `T = ${T_MAX} N → a = ${T_MAX}/${M2} = ${f(T_MAX / M2, 2)} m/s² → F = ${M1 + M2}·a ≈ ${f(FMAX, 0)} N.`,
+      `T = ${T_MAX} N → a = ${T_MAX}/${M2} = ${f(T_MAX / M2, 2)} m/s² → F = ${M1 + M2}·a ≈ ${f(FMAX, 0)} N. That's the snapping point: stay just under it.`,
     ],
     journal: {
       title: "Connected objects",

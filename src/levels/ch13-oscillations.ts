@@ -519,7 +519,7 @@ const photogateSpeed = defineLevel((v) => {
           { label: "Velocity now", value: `${f(glider.vel.x, 3)} m/s` },
           { label: "Gate reading", value: gate === null ? "—" : `${f(gate, 3)} m/s` },
         ],
-        equation: () => String.raw`\tfrac12 kA^2 = \tfrac12(${K})(${n(p.A, 3)})^2 = ${n(0.5 * K * p.A * p.A, 4)}\text{ J} = \tfrac12 m v_{max}^2`,
+        equation: () => String.raw`v_{max} = A\omega = A\sqrt{\frac{k}{m}} = (${n(p.A, 3)})\sqrt{\frac{${K}}{${n(M, 2)}}} = ${n(p.A * w, 3)}\text{ m/s}`,
         sample: () => [glider.vel.x],
       };
       return sim;

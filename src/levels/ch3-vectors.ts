@@ -160,7 +160,7 @@ const riverCrossing = defineLevel((v) => {
   const BOAT_V = v.num(5, 1);
   const CURRENT = v.num(3, 1);
   const hEx = 180 - (Math.acos(CURRENT / BOAT_V) * 180) / Math.PI;
-  const hc = { min: 30, max: 150, step: 1 };
+  const hc = { min: 30, max: 170, step: 1 };
   return {
     id: "3-2",
     chapter: 3,

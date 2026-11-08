@@ -47,7 +47,7 @@ const willItSlide = defineLevel((v) => {
     hints: [
       "Watch the orange friction arrow grow.",
       "Slips when mg sin θ > μs mg cos θ.",
-      `tan θ = ${f(MU_S, 2)} → θ ≈ ${f(thC, 1)}°.`,
+      `tan θ = ${f(MU_S, 2)} → θ ≈ ${f(thC, 1)}°. That's where it starts to slip: stay just below it.`,
     ],
     journal: {
       title: "Friction",
@@ -316,7 +316,7 @@ const takeTheCurve = defineLevel((v) => {
     hints: [
       "Compare “needed” with “max” friction.",
       "v_max = √(μs g r).",
-      `√(${f(MU_S_ROAD, 2)} · 9.81 · ${R_CURVE}) ≈ ${f(vmax, 1)} m/s.`,
+      `√(${f(MU_S_ROAD, 2)} · 9.81 · ${R_CURVE}) ≈ ${f(vmax, 1)} m/s. That's where it starts to skid: stay just under it.`,
     ],
     journal: {
       title: "Circular motion",
