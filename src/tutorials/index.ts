@@ -172,4 +172,72 @@ const ch6 = makeTutorial({
   checklist: ["Which forces act?", "Sliding or not?", "Needed vs. available?"],
 });
 
-export const TUTORIALS: Record<number, Tutorial> = { 2: ch2, 3: ch3, 5: ch5, 6: ch6 };
+const ch10 = makeTutorial({
+  chapter: 10,
+  levelId: "10-1",
+  world: "Spin City",
+  bigIdea: "Spinning uses Chapter 2's equations with new letters.",
+  ideas: ["θ ↔ x, ω ↔ v, α ↔ a.", "Work in radians: 1 turn = 2π rad."],
+  know: "starts at 6.0 rad/s",
+  change: "braking α",
+  win: "stop after exactly 3 turns",
+  demo: { alpha: 0.5 },
+  demoText: "braking α to 0.5 rad/s²",
+  watch: "The orange arc counts the angle turned. Does ω drop steadily?",
+  fix: ["Too many turns → brake harder.", "Better: solve ω² = ω₀² + 2αΔθ with Δθ = 3·2π."],
+  graph: "The ω–t graph is a straight line. Its slope is −α.",
+  checklist: ["Radians, not turns or degrees?", "Which Ch 2 equation has the same shape?", "Need v at the rim? Use v = rω."],
+});
+
+const ch11 = makeTutorial({
+  chapter: 11,
+  levelId: "11-1",
+  world: "Torque Tower",
+  bigIdea: "Torque = force × lever arm. It decides whether things turn.",
+  ideas: ["Same force, farther out → more twist.", "Balanced: torques ↺ = torques ↻."],
+  know: "30 kg kid at 2.0 m, 75 kg parent",
+  change: "where the parent sits",
+  win: "the plank stays level",
+  demo: { d: 2 },
+  demoText: "the parent at 2.0 m, same as the kid",
+  watch: "Equal distances, unequal weights. Which way does it tip?",
+  fix: ["Parent's side fell → move them closer in.", "Better: set m₁gr₁ = m₂gr₂ and solve for r₂."],
+  graph: "Compare the two torques in the data. Their difference is the net torque.",
+  checklist: ["Where is the pivot?", "Lever arm for each force?", "Στ = 0 (balance) or Στ = Iα (turning)?"],
+});
+
+const ch12 = makeTutorial({
+  chapter: 12,
+  levelId: "12-1",
+  world: "Orbit Outpost",
+  bigIdea: "Gravity weakens with distance squared, but never switches off.",
+  ideas: ["Measure r from the planet's center.", "2× the distance → ¼ the pull."],
+  know: "R = 6371 km, g = 9.81 m/s² on the ground",
+  change: "elevator height",
+  win: "gravity is exactly half",
+  demo: { h: 1300 },
+  demoText: "the elevator to 1300 km",
+  watch: "Is the weight arrow shorter than the ground one? By how much?",
+  fix: ["Still too strong → go higher.", "Better: solve (R/r)² = ½ for r, then h = r − R."],
+  graph: "Steeper drop curve = stronger gravity. Compare it with the dashed target.",
+  checklist: ["r from the center, not the surface?", "Square the distance!", "Does the small mass cancel out?"],
+});
+
+const ch13 = makeTutorial({
+  chapter: 13,
+  levelId: "13-1",
+  world: "Pendulum Park",
+  bigIdea: "Things that spring back repeat with a steady period.",
+  ideas: ["Period T = time for one full cycle.", "f = 1/T. What sets T?"],
+  know: "need T = 2.00 s",
+  change: "pendulum length",
+  win: "the period is 2.00 s",
+  demo: { L: 0.5, mass: 2 },
+  demoText: "the rod to 0.5 m",
+  watch: "Count the swings. Faster or slower than the dashed target?",
+  fix: ["Swings too fast → make it longer.", "Better: solve T = 2π√(L/g) for L."],
+  graph: "Waves lining up with the dashed curve = same period.",
+  checklist: ["What sets the period (and what doesn't)?", "Pendulum: L and g. Spring: m and k.", "Square both sides to undo the √."],
+});
+
+export const TUTORIALS: Record<number, Tutorial> = { 2: ch2, 3: ch3, 5: ch5, 6: ch6, 10: ch10, 11: ch11, 12: ch12, 13: ch13 };
