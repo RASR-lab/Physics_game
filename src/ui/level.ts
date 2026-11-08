@@ -159,10 +159,16 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
 
   const renderer = new Renderer(canvas);
   const graph = level.graph ? new LiveGraph(graphCanvas, level.graph) : null;
+  // The pinned simulation column sits just below the sticky header, so keep its height in a CSS variable.
+  const bar = root.querySelector<HTMLElement>("header.bar")!;
+  const setBarH = () => root.style.setProperty("--bar-h", `${bar.offsetHeight}px`);
+  setBarH();
   const ro = new ResizeObserver(() => {
+    setBarH();
     renderer.resize();
     graph?.resize();
   });
+  ro.observe(bar);
   ro.observe(canvas);
   if (level.graph) ro.observe(graphCanvas);
 

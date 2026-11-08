@@ -82,7 +82,7 @@ Phaser was skipped for this prototype. Every scene is a single 2D diagram, so pl
 
 - Colorblind-safe Okabe–Ito palette, applied the same way everywhere: gravity is blue, normal force green, friction orange, applied force purple, velocity vermillion. Every arrow also carries a text label.
 - Slow-motion, pause, and toggles for force/velocity arrows and trails.
-- Large touch targets. On narrow screens the panel stacks above the stage.
+- On wide screens the simulation column stays pinned while the question panels scroll, so the simulation and the questions are always visible together (the simulation shrinks on short windows). Large touch targets. On narrow screens the panel stacks above the stage.
 
 ## Adding a level
 

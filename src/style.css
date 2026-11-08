@@ -108,6 +108,27 @@ h1, h2, h3 { margin: 0; line-height: 1.2; }
 .equation .katex-display { margin: 0.2rem 0; text-align: left; }
 
 .right { display: grid; gap: 0.7rem; }
+
+/*
+ * Wide screens: the simulation column stays pinned under the header while the page scrolls,
+ * so only the question panels on the right move. If the window is short, the simulation
+ * shrinks to keep the toolbar, graph and data in view (the column scrolls on its own only
+ * as a last resort).
+ */
+@media (min-width: 961px) {
+  .left {
+    position: sticky;
+    top: calc(var(--bar-h, 64px) + 1rem);
+    max-height: calc(100vh - var(--bar-h, 64px) - 2rem);
+    max-height: calc(100dvh - var(--bar-h, 64px) - 2rem);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .left > * { flex: 0 0 auto; }
+  .left > .stage-wrap { flex: 0 1 auto; min-height: 160px; }
+  .graph-wrap { height: clamp(150px, 24vh, 230px); }
+}
 .card, .step { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.9rem 1rem; }
 .hook p { margin: 0 0 0.5rem; }
 .hook .goal { margin: 0; padding: 0.55rem 0.7rem; background: #f3f6ff; border-left: 4px solid var(--accent); border-radius: 6px; }
