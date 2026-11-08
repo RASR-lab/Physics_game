@@ -59,6 +59,8 @@ export interface Sim {
   equation(): string;
   /** Values for the live graph, in the same order as GraphDef.series. */
   sample?(): number[];
+  /** Optional short text for the win/fail banner (defaults to a generic message). */
+  banner?(o: Outcome): string;
   /** Optional moving camera; otherwise Level.view is used. */
   view?(): View;
 }

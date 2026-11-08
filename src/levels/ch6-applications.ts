@@ -3,6 +3,9 @@ import { COLORS, damping, gravity, spring } from "../physics/forces";
 import { slideAngleDeg } from "../physics/analytic";
 import { Vec2, rad } from "../physics/vec2";
 import type { Sim } from "./types";
+import { ground, hillsScreen, lawn, sky, treeTop, wall } from "../render/art/backdrops";
+import { carTop, coil, crate as crateArt, groceryBag, person, plank, ramp, tyre } from "../render/art/props";
+import { noisePattern } from "../render/art/core";
 import { defineLevel, f, n, roundTo, snap } from "./util";
 
 /* ------------------------------------------------------------------ */
@@ -94,11 +97,16 @@ const willItSlide = defineLevel((v) => {
           return { success: true, message: `Held at ${p.angle}°. Right at the edge!` };
         },
         draw(r, ov) {
-          r.clear();
-          r.rect(-5, -1, 20, 1, "#a3a3a3");
+          sky(r, r.sy(0), "day");
+          hillsScreen(r, r.sy(0), Math.min(r.h * 0.2, r.sy(0) * 0.4));
+          ground(r, 0, "grass");
           const top = new Vec2(RAMP_L * Math.cos(th), RAMP_L * Math.sin(th));
-          r.poly([[0, 0], [top.x, top.y], [top.x, 0]], "#d6a86b", "#7c4a1e");
-          r.rect(top.x, 0, 1.2, top.y + 0.01, "#475569");
+          ramp(r, [
+            [0, 0],
+            [top.x, top.y],
+            [top.x, 0],
+          ]);
+          r.rect(top.x, 0, 1.2, top.y + 0.01, "#9ca3af", "#475569", 2);
           // angle arc
           const ctx = r.ctx;
           ctx.beginPath();
@@ -106,14 +114,14 @@ const willItSlide = defineLevel((v) => {
           ctx.strokeStyle = "#111827";
           ctx.lineWidth = 1.5;
           ctx.stroke();
-          r.textPx(`θ = ${p.angle}°`, r.sx(0) + 62, r.sy(0) - 12, { size: 12, bold: true });
+          r.textPx(`θ = ${p.angle}°`, r.sx(0) + 62, r.sy(0) - 12, { size: 12, bold: true, bg: "rgba(255,255,255,.85)" });
           const s = crate.pos.x;
           const along = new Vec2(Math.cos(th), Math.sin(th));
           const up = new Vec2(-Math.sin(th), Math.cos(th));
           const size = 0.55 + 0.012 * m;
           const c = along.scale(s).add(up.scale(size / 2));
-          r.rotRect(c.x, c.y, size, size, th, "#b45309");
-          r.text(`${m} kg`, c.x, c.y, { size: 10, color: "#fff", bold: true });
+          crateArt(r, c.x, c.y, size, size, th);
+          r.text(`${m} kg`, c.x, c.y, { size: 10, bold: true, bg: "rgba(255,255,255,.85)" });
           if (ov.forces) {
             const ppu = 85 / (m * G);
             r.arrow(c, new Vec2(0, -m * G), ppu, COLORS.gravity, "F_g");
@@ -216,8 +224,11 @@ const springScale = defineLevel((v) => {
           return { success: false, message: `Settled at ${f(s * 100, 1)} cm. ${diff < 0 ? "Add mass." : "Less mass."}` };
         },
         draw(r, ov) {
-          r.clear("#fdf6e3", "#fffdf5");
-          r.rect(-0.4, 0, 0.8, 0.05, "#57534e");
+          wall(r, "#f2e6cf", "wallpaper");
+          // ruler board behind the scale markings
+          r.rect(-0.37, -REST - 0.43, 0.12, 0.47, "#fffdf5", "#d6c7a8", 3);
+          plank(r, 0, 0.035, 0.9, 0.07, 0, "#a47148");
+          r.circle(0, 0, 0.012, "#64748b", undefined, 3);
           // marks
           const yRest = -REST;
           const yMark = -REST - TARGET_STRETCH;
@@ -232,21 +243,12 @@ const springScale = defineLevel((v) => {
             r.text(`${c}`, -0.32, y, { size: 10, align: "right", color: "#4b5563" });
           }
           r.text("cm", -0.34, yRest + 0.03, { size: 10, align: "right", color: "#4b5563" });
-          // spring zigzag
-          const top = 0;
+          // spring + bag of produce
           const bot = bob.pos.y + 0.06;
-          const coils = 14;
-          const pts: Vec2[] = [new Vec2(0, top)];
-          for (let i = 1; i < coils * 2; i++) {
-            const y = top + ((bot - top) * i) / (coils * 2);
-            pts.push(new Vec2(i % 2 ? 0.05 : -0.05, y));
-          }
-          pts.push(new Vec2(0, bot));
-          r.path(pts, COLORS.spring, 2.5);
-          // bag of produce
+          coil(r, new Vec2(0, 0), new Vec2(0, bot), 14, 0.1, COLORS.spring);
           const w = 0.09 + 0.02 * m;
-          r.rect(-w / 2, bob.pos.y - w * 0.9, w, w * 0.9 + 0.06, "#65a30d", "#365314", 8);
-          r.text(`${f(m, 1)} kg`, 0, bob.pos.y - w * 0.4, { size: 11, color: "#fff", bold: true });
+          groceryBag(r, 0, bot, w * 1.15);
+          r.text(`${f(m, 1)} kg`, 0, bob.pos.y - w * 0.4, { size: 11, bold: true, bg: "rgba(255,255,255,.85)" });
           const c = new Vec2(0, bob.pos.y - w * 0.4);
           if (ov.forces) {
             r.arrow(c.add(new Vec2(-0.1, 0)), new Vec2(0, -m * G), 1.6, COLORS.gravity, "mg");
@@ -384,33 +386,58 @@ const takeTheCurve = defineLevel((v) => {
           return { success: true, message: `Made it at ${f(v)} m/s, using ${f(((v * v) / R_CURVE / (MU_S_ROAD * G)) * 100, 0)}% of the grip!` };
         },
         draw(r, ov) {
-          r.clear("#bbf7d0", "#dcfce7");
+          lawn(r);
           const ctx = r.ctx;
           const cx = r.sx(0),
             cy = r.sy(0);
+          const ring = (rad: number) => {
+            ctx.beginPath();
+            ctx.arc(cx, cy, rad * r.scale, 0, Math.PI * 2);
+          };
+          // asphalt ring
           ctx.beginPath();
           ctx.arc(cx, cy, (R_CURVE + ROAD_HALF) * r.scale, 0, Math.PI * 2);
           ctx.arc(cx, cy, (R_CURVE - ROAD_HALF) * r.scale, 0, Math.PI * 2, true);
-          ctx.fillStyle = "#6b7280";
+          ctx.fillStyle = noisePattern(ctx, "#5a6170");
           ctx.fill();
-          ctx.beginPath();
+          // red/white kerbs on both edges
+          for (const rad of [R_CURVE + ROAD_HALF, R_CURVE - ROAD_HALF]) {
+            ring(rad);
+            ctx.strokeStyle = "#f8fafc";
+            ctx.lineWidth = Math.max(3, r.scale * 0.6);
+            ctx.stroke();
+            ring(rad);
+            ctx.setLineDash([Math.max(6, r.scale * 1.2), Math.max(6, r.scale * 1.2)]);
+            ctx.strokeStyle = "#dc2626";
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+          ring(R_CURVE);
           ctx.setLineDash([10, 10]);
-          ctx.arc(cx, cy, R_CURVE * r.scale, 0, Math.PI * 2);
-          ctx.strokeStyle = "#f8fafc";
+          ctx.strokeStyle = "rgba(250,214,92,.95)";
           ctx.lineWidth = 2;
           ctx.stroke();
           ctx.setLineDash([]);
-          r.circle(0, 0, 1, "#111827");
-          r.text("center", 0, -4, { size: 11 });
+          // infield trees
+          for (const [fx, fy, fr] of [
+            [-0.4, 0.36, 0.08],
+            [0.32, 0.44, 0.07],
+            [0.44, -0.24, 0.09],
+            [0.2, 0.7, 0.06],
+            [0.6, 0.2, 0.06],
+          ] as [number, number, number][])
+            treeTop(r, fx * R_CURVE, fy * R_CURVE, fr * R_CURVE);
+          r.circle(0, 0, 1, "#334155");
+          r.text("center", 0, -4, { size: 11, bold: true, bg: "rgba(255,255,255,.85)" });
           r.line(0, 0, 0, -R_CURVE, "#374151", 1, [4, 4]);
-          r.text(`r = ${R_CURVE} m`, 2, -R_CURVE / 2, { size: 11, align: "left" });
+          r.text(`r = ${R_CURVE} m`, 2, -R_CURVE / 2, { size: 11, align: "left", bold: true, bg: "rgba(255,255,255,.85)" });
           const sy = -0.8 * R_CURVE;
-          r.rect(-14, sy, 10, 7, "#fff", "#111827", 3);
+          r.rect(-14, sy, 10, 7, "#ffffff", "#475569", 4);
           r.text("SPEED", -9, sy + 5.4, { size: 10, bold: true });
           r.text(`${f(v)} m/s`, -9, sy + 2.4, { size: 12, bold: true });
           if (ov.trail) r.path(trail, "rgba(213,94,0,.8)", 2.5);
           const ang = Math.atan2(car.vel.y, car.vel.x);
-          r.rotRect(car.pos.x, car.pos.y, 7, 3.4, ang, skids ? "#f97316" : "#2563eb"); // drawn ~1.5× size for visibility
+          carTop(r, car.pos.x, car.pos.y, 7, 3.4, ang, skids ? "#f97316" : "#2563eb"); // drawn ~1.5× size for visibility
           const P = car.pos;
           if (ov.forces && !done) {
             const fv = car.lastForces[0]?.value ?? Vec2.zero();
@@ -512,21 +539,31 @@ const steadyPush = defineLevel((v) => {
           return { success: false, message: `Speed ${change > 0 ? "rose" : "fell"} to ${f(crate.vel.x, 2)} m/s. ${change > 0 ? "Push less." : "Push more."}` };
         },
         draw(r, ov) {
-          r.clear("#f5f5f4", "#fafaf9");
+          wall(r, "#cbd5e1", "brick");
           const vis = r.visible();
-          r.rect(vis.xMin, -0.6, vis.xMax - vis.xMin, 0.6, "#a8a29e");
+          // warehouse shelving in the background (moves with the floor)
+          for (let sx = Math.floor(vis.xMin / 4) * 4; sx < vis.xMax; sx += 4) {
+            r.rect(sx + 0.2, 0, 2.6, 2.3, "rgba(71,85,105,.35)", undefined, 2);
+            for (const sy of [0.7, 1.45, 2.2]) r.rect(sx + 0.2, sy, 2.6, 0.08, "#64748b");
+            for (const [bx, by, bw] of [
+              [0.4, 0.06, 0.7],
+              [1.3, 0.06, 0.5],
+              [0.6, 0.78, 0.6],
+              [1.9, 0.78, 0.6],
+              [0.3, 1.53, 0.5],
+            ])
+              r.rect(sx + bx, by, bw, 0.55, "#c9a27e", undefined, 2);
+          }
+          ground(r, 0, "concrete");
           for (let x = Math.floor(vis.xMin); x < vis.xMax; x += 1) {
             r.line(x, 0, x, -0.15, "#57534e", 1);
-            r.text(`${x} m`, x, -0.35, { size: 10, color: "#57534e" });
+            r.text(`${x} m`, x, -0.35, { size: 10, color: "#44403c" });
           }
           const x = crate.pos.x;
-          r.rect(x - 0.4, 0, 0.8, 0.8, "#b45309", "#78350f", 3);
-          r.text(`${M} kg`, x, 0.4, { size: 11, bold: true, color: "#fff" });
+          crateArt(r, x, 0.4, 0.8, 0.8, 0);
+          r.text(`${M} kg`, x, 0.4, { size: 11, bold: true, bg: "rgba(255,255,255,.85)" });
           // person pushing
-          r.circle(x - 0.85, 1.35, 0.15, "#fcd34d", "#92400e");
-          r.line(x - 0.85, 1.2, x - 0.95, 0.45, "#1e40af", 5);
-          r.line(x - 0.95, 0.45, x - 1.15, 0, "#1e40af", 4);
-          r.line(x - 0.9, 0.95, x - 0.4, 0.6, "#0ea5e9", 4);
+          person(r, x - 0.88, 0, 1.7, { pose: "push", shirt: "#0ea5e9", pants: "#1e40af" });
           if (ov.forces) {
             const ppu = 70 / Math.max(fk, p.F, 1);
             r.arrow(new Vec2(x + 0.4, 0.55), new Vec2(p.F, 0), ppu, COLORS.applied, "F");
@@ -622,24 +659,38 @@ const bankedCurve = defineLevel((v) => {
           return { success: false, message: `Slid ${sPos > 0 ? "up and outward" : "down and inward"}. ${sPos > 0 ? "Bank it more." : "Bank it less."}` };
         },
         draw(r, ov) {
-          r.clear("#e0f2fe", "#f0f9ff");
+          sky(r, r.sy(-1.2), "day");
+          hillsScreen(r, r.sy(-1.2), r.h * 0.18);
+          ground(r, -1.2, "grass");
           // cross-section: center of the turn is to the LEFT
           const up = new Vec2(Math.cos(th), Math.sin(th)); // along the slope, outward and up
           const nrm = new Vec2(-Math.sin(th), Math.cos(th));
           const a = up.scale(-3.2),
             b = up.scale(3.2);
-          r.poly([[a.x, a.y], [b.x, b.y], [b.x, -2.6], [a.x, -2.6]], "#f8fafc", "#94a3b8");
-          r.line(a.x, a.y, b.x, b.y, "#60a5fa", 4);
+          r.poly([[a.x, a.y], [b.x, b.y], [b.x, -2.6], [a.x, -2.6]], "#cbd5e1", "#64748b");
+          r.poly([[a.x, a.y], [b.x, b.y], [b.x + nrm.x * -0.12, b.y - 0.12 * nrm.y], [a.x - nrm.x * 0.12, a.y - 0.12 * nrm.y]], "#4b5563");
+          r.line(a.x, a.y, b.x, b.y, "#374151", 3);
           const l1 = up.scale(-LANE),
             l2 = up.scale(LANE);
-          r.line(l1.x, l1.y, l1.x + nrm.x * 0.3, l1.y + nrm.y * 0.3, "#e63946", 2);
-          r.line(l2.x, l2.y, l2.x + nrm.x * 0.3, l2.y + nrm.y * 0.3, "#e63946", 2);
-          r.textPx("← center of the turn", 16, r.h - 18, { size: 12, align: "left", bold: true, color: "#1e3a8a" });
+          r.line(l1.x, l1.y, l1.x + nrm.x * 0.3, l1.y + nrm.y * 0.3, "#e63946", 3);
+          r.line(l2.x, l2.y, l2.x + nrm.x * 0.3, l2.y + nrm.y * 0.3, "#e63946", 3);
+          r.textPx("← center of the turn", 16, r.h - 18, { size: 12, align: "left", bold: true, color: "#fff", bg: "#1e3a8a" });
+          // race car seen from behind, tilted with the bank
           const c = up.scale(sPos).add(nrm.scale(0.25));
-          r.rotRect(c.x, c.y, 0.9, 0.4, th, "#D55E00");
+          const wL = up.scale(sPos - 0.32).add(nrm.scale(0.1)),
+            wR = up.scale(sPos + 0.32).add(nrm.scale(0.1));
+          tyre(r, wL.x, wL.y, 0.11);
+          tyre(r, wR.x, wR.y, 0.11);
+          r.rotRect(c.x, c.y, 0.9, 0.36, th, "#D55E00");
+          const cab = c.add(nrm.scale(0.22));
+          r.rotRect(cab.x, cab.y, 0.5, 0.18, th, "#2c3e57");
+          const tl = c.add(up.scale(-0.36)),
+            tr = c.add(up.scale(0.36));
+          r.circle(tl.x, tl.y, 0.04, "#ff3b3b", undefined, 3);
+          r.circle(tr.x, tr.y, 0.04, "#ff3b3b", undefined, 3);
           if (ov.forces) {
             const mg = 9.81;
-            const N = (mg * Math.cos(th)) + ((V * V) / R) * Math.sin(th); // per kg
+            const N = mg * Math.cos(th) + ((V * V) / R) * Math.sin(th); // per kg
             r.arrow(c, new Vec2(0, -mg), 9, COLORS.gravity, "mg");
             r.arrow(c, nrm.scale(N), 9, COLORS.normal, "N");
             r.arrow(c.add(new Vec2(0, -0.6)), new Vec2(-N * Math.sin(th), 0), 9, COLORS.acceleration, "N sin θ");
