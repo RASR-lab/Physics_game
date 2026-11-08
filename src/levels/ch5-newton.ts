@@ -20,34 +20,30 @@ const coastingInSpace: Level = {
   id: "5-1",
   chapter: 5,
   title: "Coasting in Space",
-  hook: "A 200 kg cargo crate has to reach a space station 100 m away. Its thruster fires for 4 seconds, then shuts off for good. Out here there's no friction and no air.",
-  goal: "Choose the thrust so the crate reaches the station between 19 and 21 s after launch.",
+  hook: "Send a 200 kg crate to a station 100 m away. Thruster: 4 s, then off. No friction.",
+  goal: "Arrive between 19 and 21 s.",
   controls: [{ key: "thrust", label: "Thruster force F", min: 0, max: 1000, step: 10, value: 100, unit: "N" }],
   predict: {
-    prompt: "After the thruster shuts off, what will the crate do?",
-    options: ["Gradually slow down and stop", "Keep moving at a constant speed", "Stop immediately", "Keep speeding up"],
+    prompt: "Thruster off. The crate…",
+    options: ["Slows and stops", "Keeps going, same speed", "Stops instantly", "Speeds up"],
     correct: 1,
-    why: "Newton's 1st law: with no net force, velocity doesn't change. On Earth things slow down because of friction and air, not because motion 'runs out'.",
+    why: "No force → no change in motion. On Earth, friction is what stops things.",
   },
   explain: {
-    prompt: "Why did the crate keep moving after the engine shut off?",
-    options: [
-      "No net force means no acceleration, so its velocity stayed constant",
-      "The force was stored inside the crate and slowly used up",
-      "The space station pulled it in",
-    ],
+    prompt: "Why did it keep moving?",
+    options: ["No net force → constant velocity", "Stored force slowly ran out", "The station pulled it"],
     correct: 0,
-    why: "ΣF = ma. When ΣF = 0, a = 0. A force is needed to change motion, not to keep it going.",
+    why: "ΣF = 0 → a = 0. Forces change motion; they don't keep it going.",
   },
   hints: [
-    "Turn on the trail. Ghosts drop every second. How do the gaps look after the engine cuts off?",
-    "During the burn a = F/m. After the burn the crate coasts at v = a·4 s. The total time works out to t ≈ 2 + 25/a.",
-    "For t = 20 s you need a ≈ 1.39 m/s², so F = m·a ≈ 200 · 1.39 ≈ 280 N.",
+    "Watch the ghost spacing after the engine stops.",
+    "a = F/m for 4 s, then coast. Total t ≈ 2 + 25/a.",
+    "t = 20 s → a ≈ 1.39 → F ≈ 280 N.",
   ],
   journal: {
     title: "Newton's 1st & 2nd laws",
     tex: String.raw`\sum \vec F = m\vec a \qquad \sum\vec F = 0 \;\Rightarrow\; \vec v = \text{constant}`,
-    note: "Forces change motion. They aren't needed to keep something moving.",
+    note: "No net force → constant velocity.",
   },
   view: { xMin: -8, xMax: 120, yMin: -18, yMax: 18 },
   graph: { title: "Velocity vs. time", yLabel: "v (m/s)", tMax: 22, yMin: 0, yMax: 8, series: [{ label: "v", color: COLORS.velocity }] },
@@ -74,9 +70,9 @@ const coastingInSpace: Level = {
       isDone: () => arrive !== null || sim.t > 40,
       outcome() {
         if (arrive === null)
-          return { success: false, message: p.thrust === 0 ? "With zero thrust the crate never moved: no force, no change in motion." : `After 40 s the crate still hadn't arrived (it was at ${f(crate.pos.x)} m). More thrust.` };
-        if (arrive >= 19 && arrive <= 21) return { success: true, message: `Docked after ${f(arrive, 2)} s. Right on schedule!` };
-        return { success: false, message: `The crate docked after ${f(arrive, 2)} s, but the window is 19–21 s. ${arrive < 19 ? "Less thrust." : "More thrust."}` };
+          return { success: false, message: p.thrust === 0 ? "No force, no motion." : "Too slow to arrive. More thrust." };
+        if (arrive >= 19 && arrive <= 21) return { success: true, message: `Docked at ${f(arrive, 2)} s. On time!` };
+        return { success: false, message: `Docked at ${f(arrive, 2)} s. Need 19–21 s. ${arrive < 19 ? "Less thrust." : "More thrust."}` };
       },
       draw(r, ov) {
         r.clear("#0b1026", "#1a2250");
@@ -129,34 +125,30 @@ const elevatorScale: Level = {
   id: "5-2",
   chapter: 5,
   title: "Elevator Scale",
-  hook: "A 60 kg rider stands on a bathroom scale in an elevator. The thrill-ride designer wants the rider to feel 'heavier'. The scale should read 700 N while the elevator speeds up.",
-  goal: "Choose the elevator's acceleration (+ = up) so the scale reads 700 N (±5 N) during the first 2.5 s.",
+  hook: "A 60 kg rider stands on a scale in an elevator. Make them feel heavier.",
+  goal: "Scale reads 700 N (±5) while speeding up.",
   controls: [{ key: "accel", label: "Elevator acceleration a", min: -4, max: 4, step: 0.1, value: 0, unit: "m/s²" }],
   predict: {
-    prompt: "As the elevator starts moving UP and speeds up, the scale reads…",
-    options: ["More than the rider's weight", "Exactly the rider's weight", "Less than the rider's weight"],
+    prompt: "Speeding up going UP, the scale reads…",
+    options: ["More than weight", "Same as weight", "Less than weight"],
     correct: 0,
-    why: "To accelerate the rider upward, the floor must push up harder than gravity pulls down. The scale measures that push, the normal force.",
+    why: "The floor must push harder than gravity to speed you up.",
   },
   explain: {
-    prompt: "Why did the scale read more than mg = 589 N?",
-    options: [
-      "The floor pushed harder than gravity to give the rider an upward net force: N − mg = ma",
-      "The rider's mass increased",
-      "Gravity got stronger as the elevator rose",
-    ],
+    prompt: "Why more than 589 N?",
+    options: ["Floor pushes extra: N − mg = ma", "Mass increased", "Gravity got stronger"],
     correct: 0,
-    why: "The scale reads the normal force N. From ΣF = ma: N = m(g + a). Mass and gravity didn't change.",
+    why: "The scale reads N = m(g + a).",
   },
   hints: [
-    "At a = 0 the scale reads the rider's weight, about 589 N. You need more.",
-    "Draw the free-body diagram: N up, mg down. Newton's 2nd law: N − mg = ma.",
-    "a = N/m − g = 700/60 − 9.81 ≈ 1.9 m/s².",
+    "At a = 0 it reads 589 N. You need more.",
+    "N up, mg down: N − mg = ma.",
+    "a = 700/60 − 9.81 ≈ 1.9 m/s².",
   ],
   journal: {
     title: "Apparent weight",
     tex: String.raw`N - mg = ma \;\Rightarrow\; N = m(g + a)`,
-    note: "A scale measures the normal force, not your mass. It reads more when you accelerate up and less when you accelerate down.",
+    note: "A scale reads N, not mass. Accelerate up → heavier.",
   },
   view: { xMin: -6, xMax: 6, yMin: -2, yMax: 6 },
   graph: {
@@ -196,10 +188,10 @@ const elevatorScale: Level = {
       isDone: () => sim.t >= RIDE_END - 1e-9,
       outcome() {
         const N = RIDER_M * (G + p.accel);
-        if (worst <= 5) return { success: true, message: `The scale read ${f(N, 0)} N while speeding up. The rider feels about ${f(N / (RIDER_M * G), 2)}× heavier!` };
-        let tip = N < TARGET_N ? "Accelerate upward harder." : "Ease off the acceleration.";
-        if (p.accel < 0) tip = "The elevator accelerated downward, so the rider felt lighter. Try a positive (upward) acceleration.";
-        return { success: false, message: `The scale read ${f(N, 0)} N. The designer wants 700 N. ${tip}` };
+        if (worst <= 5) return { success: true, message: `${f(N, 0)} N: ${f(N / (RIDER_M * G), 2)}× heavier!` };
+        let tip = N < TARGET_N ? "More upward acceleration." : "Less acceleration.";
+        if (p.accel < 0) tip = "Negative = down = lighter. Go positive.";
+        return { success: false, message: `Read ${f(N, 0)} N. Need 700 N. ${tip}` };
       },
       draw(r, ov) {
         r.clear("#e5e7eb", "#f3f4f6");
@@ -266,34 +258,30 @@ const skaterPushOff: Level = {
   id: "5-3",
   chapter: 5,
   title: "Skater Push-Off",
-  hook: "Ava (50 kg) and her partner stand face to face on frictionless ice and push off each other with 200 N for half a second. In the routine, Ava glides 20 m and her partner glides 10 m, and they must reach their marks at the same moment.",
-  goal: "Choose the partner's mass so both skaters cross their marks within 0.3 s of each other.",
+  hook: "Ava (50 kg) and her partner push off on ice: 200 N for 0.5 s. Ava glides 20 m, partner 10 m.",
+  goal: "Both reach their marks at the same time (±0.3 s).",
   controls: [{ key: "benMass", label: "Partner's mass", min: 40, max: 120, step: 1, value: 60, unit: "kg" }],
   predict: {
-    prompt: "The partner is heavier than Ava. While they push, who feels the larger force?",
-    options: ["The heavier partner", "Ava", "They feel equal forces"],
+    prompt: "Partner is heavier. Who feels more force?",
+    options: ["Partner", "Ava", "Equal"],
     correct: 2,
-    why: "Newton's 3rd law: when A pushes on B, B pushes back on A with an equal and opposite force, whatever their masses.",
+    why: "3rd law: equal and opposite, always.",
   },
   explain: {
-    prompt: "The forces were equal, so why did the heavier skater glide away more slowly?",
-    options: [
-      "The same force on more mass gives less acceleration (a = F/m)",
-      "The heavier skater pushed less hard",
-      "Heavier skaters have more friction on ice",
-    ],
+    prompt: "Equal forces. Why is the partner slower?",
+    options: ["More mass → less acceleration", "Partner pushed less", "Ice friction"],
     correct: 0,
-    why: "Equal forces, unequal masses. Twice the mass means half the acceleration, so half the speed after the push.",
+    why: "a = F/m. 2× mass → ½ speed.",
   },
   hints: [
-    "The partner has to cover half the distance in the same time, so they must end up at half Ava's speed.",
-    "Both feel 200 N for 0.5 s. Speed after the push: v = (F/m)·t. Ava: (200/50)(0.5) = 2 m/s.",
-    "The partner needs 1 m/s: (200/m)(0.5) = 1  →  m = 100 kg.",
+    "Half the distance, same time → half the speed.",
+    "Speed after push: v = (F/m)·t. Ava gets 2 m/s.",
+    "Partner needs 1 m/s → m = 100 kg.",
   ],
   journal: {
     title: "Newton's 3rd law",
     tex: String.raw`\vec F_{A\,\text{on}\,B} = -\vec F_{B\,\text{on}\,A}`,
-    note: "Forces come in equal and opposite pairs acting on different objects. Equal forces can still produce different accelerations.",
+    note: "Equal and opposite forces, on different objects.",
   },
   view: { xMin: -24, xMax: 14, yMin: -4, yMax: 7, anchor: "bottom" },
   graph: {
@@ -330,11 +318,8 @@ const skaterPushOff: Level = {
       outcome() {
         if (tA === null || tB === null) return { success: false, message: "Someone never reached their mark." };
         const d = tB - tA;
-        if (Math.abs(d) <= 0.3) return { success: true, message: `Ava crossed at ${f(tA, 2)} s and her partner at ${f(tB, 2)} s. Perfectly in sync!` };
-        return {
-          success: false,
-          message: `Ava crossed at ${f(tA, 2)} s, her partner at ${f(tB, 2)} s. The partner was ${d < 0 ? "too fast, so make them heavier" : "too slow, so make them lighter"}.`,
-        };
+        if (Math.abs(d) <= 0.3) return { success: true, message: `Ava ${f(tA, 2)} s, partner ${f(tB, 2)} s. In sync!` };
+        return { success: false, message: `Ava ${f(tA, 2)} s, partner ${f(tB, 2)} s. Make partner ${d < 0 ? "heavier" : "lighter"}.` };
       },
       draw(r, ov) {
         r.clear("#e0f2fe", "#f0f9ff");

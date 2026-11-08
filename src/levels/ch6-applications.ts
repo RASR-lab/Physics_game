@@ -16,37 +16,33 @@ const willItSlide: Level = {
   id: "6-1",
   chapter: 6,
   title: "Will It Slide?",
-  hook: "Movers are sliding a crate down a wooden ramp from a truck. The steeper the ramp, the shorter it can be, but the crate must stay put until someone pushes it. For wood on wood, μs = 0.45 and μk = 0.30.",
-  goal: "Tilt the ramp as steeply as possible (at least 23°) without the crate sliding on its own.",
+  hook: "A crate sits on a wooden ramp. μs = 0.45, μk = 0.30.",
+  goal: "Steepest angle (≥ 23°) where it doesn't slide.",
   controls: [
     { key: "angle", label: "Ramp angle θ", min: 0, max: 40, step: 0.5, value: 10, unit: "°" },
     { key: "mass", label: "Crate mass", min: 1, max: 50, step: 1, value: 10, unit: "kg" },
   ],
   predict: {
-    prompt: "If you make the crate twice as heavy, the steepest angle before it slides…",
-    options: ["Gets steeper (heavier crates hold better)", "Stays the same", "Gets shallower (heavier crates slide sooner)"],
+    prompt: "Double the mass. The slip angle…",
+    options: ["Gets steeper", "Stays the same", "Gets shallower"],
     correct: 1,
-    why: "The downhill pull mg sin θ and the maximum friction μs mg cos θ both double, so the mass cancels: the crate slips when tan θ > μs.",
+    why: "Pull and friction both double. Mass cancels: tan θ = μs.",
   },
   explain: {
-    prompt: "Why doesn't the crate's mass change the slipping angle?",
-    options: [
-      "Downhill pull and maximum friction both grow with mass, so mass cancels out: tan θ = μs",
-      "Friction doesn't depend on the normal force",
-      "Heavier crates have a smaller μs",
-    ],
+    prompt: "Why doesn't mass matter?",
+    options: ["Pull and max friction both grow with mass", "Friction ignores the normal force", "Heavier crates have lower μs"],
     correct: 0,
-    why: "Slipping starts when mg sin θ = μs mg cos θ. Divide both sides by mg cos θ and you get tan θ = μs.",
+    why: "mg sin θ = μs mg cos θ → tan θ = μs.",
   },
   hints: [
-    "Turn on the force arrows. Static friction (orange) grows to match the downhill pull, up to a limit.",
-    "The limit is f_s,max = μs N = μs mg cos θ. The crate slips when mg sin θ is bigger than that.",
-    "tan θ = 0.45  →  θ ≈ 24.2°. Try 24°.",
+    "Watch the orange friction arrow grow.",
+    "Slips when mg sin θ > μs mg cos θ.",
+    "tan θ = 0.45 → θ ≈ 24°.",
   ],
   journal: {
     title: "Friction",
     tex: String.raw`f_s \le \mu_s F_N,\qquad f_k = \mu_k F_N,\qquad \text{slips when } \tan\theta > \mu_s`,
-    note: "Static friction adjusts up to a maximum. Once sliding, kinetic friction (usually smaller) takes over.",
+    note: "Static friction adjusts, up to μs·N.",
   },
   view: { xMin: -1, xMax: 10, yMin: -1, yMax: 6.5, anchor: "bottom" },
   graph: { title: "Speed along the ramp", yLabel: "v (m/s)", tMax: 2.5, yMin: 0, yMax: 4, series: [{ label: "speed", color: COLORS.velocity }] },
@@ -86,9 +82,9 @@ const willItSlide: Level = {
       isDone: () => done,
       outcome() {
         const ratio = Math.tan(th);
-        if (slides) return { success: false, message: `The crate slid down! At ${p.angle}°, tan θ = ${f(ratio, 3)} is more than μs = 0.45. Lower the ramp.` };
-        if (p.angle < 23) return { success: false, message: `The crate held. At ${p.angle}° you can still go steeper (aim for at least 23°).` };
-        return { success: true, message: `The crate held at ${p.angle}°, right at the edge (tan θ = ${f(ratio, 3)} ≤ 0.45). Great ramp!` };
+        if (slides) return { success: false, message: `Slid! tan θ = ${f(ratio, 2)} > 0.45. Lower it.` };
+        if (p.angle < 23) return { success: false, message: "Held, but go steeper (≥ 23°)." };
+        return { success: true, message: `Held at ${p.angle}°. Right at the edge!` };
       },
       draw(r, ov) {
         r.clear();
@@ -146,34 +142,30 @@ const springScale: Level = {
   id: "6-2",
   chapter: 6,
   title: "Spring Scale",
-  hook: "A farmers' market uses a hanging spring scale (k = 200 N/m) to weigh produce. To check it, you need a bag that stretches the spring exactly to the red calibration mark, 14.7 cm below its relaxed length.",
-  goal: "Choose the mass so the spring settles at the red mark (±0.3 cm).",
+  hook: "Spring scale, k = 200 N/m. Hang a bag to reach the red mark.",
+  goal: "Settle on the red mark, 14.7 cm (±0.3).",
   controls: [{ key: "mass", label: "Mass of produce", min: 0.1, max: 5, step: 0.1, value: 1, unit: "kg" }],
   predict: {
-    prompt: "If you hang twice as much mass on the spring, it stretches…",
-    options: ["The same amount", "Twice as far", "Four times as far", "Half as far"],
+    prompt: "Double the mass. The stretch…",
+    options: ["Same", "2×", "4×", "Half"],
     correct: 1,
-    why: "Hooke's law: spring force is proportional to stretch (F = kΔx). Twice the weight needs twice the stretch to balance it.",
+    why: "F = kΔx. 2× weight → 2× stretch.",
   },
   explain: {
-    prompt: "Why does the mass stop bouncing at exactly that point?",
-    options: [
-      "There the spring force kΔx equals the weight mg, so the net force is zero",
-      "The spring runs out of stretch",
-      "Gravity switches off once the mass stops",
-    ],
+    prompt: "Why does it settle there?",
+    options: ["Spring force = weight, so net force is 0", "The spring runs out of stretch", "Gravity turns off"],
     correct: 0,
-    why: "At equilibrium ΣF = 0: kΔx = mg. The small bounce dies away because of a little air resistance (damping).",
+    why: "At rest: kΔx = mg.",
   },
   hints: [
-    "Heavier bags stretch the spring farther. Watch where it settles compared with the red line.",
-    "At rest the spring holds up the weight: kΔx = mg.",
-    "m = kΔx / g = 200 · 0.147 / 9.81 ≈ 3.0 kg.",
+    "Heavier → more stretch.",
+    "At rest: kΔx = mg.",
+    "m = 200 · 0.147 / 9.81 ≈ 3.0 kg.",
   ],
   journal: {
     title: "Hooke's law",
     tex: String.raw`\vec F_{spring} = -k\,\Delta\vec x \qquad \text{at rest: } k\Delta x = mg`,
-    note: "Spring force is proportional to stretch and points back toward the relaxed length.",
+    note: "Spring force ∝ stretch.",
   },
   view: { xMin: -0.5, xMax: 0.5, yMin: -0.75, yMax: 0.08 },
   graph: {
@@ -206,8 +198,8 @@ const springScale: Level = {
       outcome() {
         const s = stretch();
         const diff = (s - TARGET_STRETCH) * 100;
-        if (Math.abs(diff) <= 0.3) return { success: true, message: `The spring settled at ${f(s * 100, 1)} cm, right on the red mark. Scale calibrated!` };
-        return { success: false, message: `The spring settled at ${f(s * 100, 1)} cm, which is ${f(Math.abs(diff), 1)} cm ${diff < 0 ? "above" : "below"} the mark. ${diff < 0 ? "Add mass." : "Use less mass."}` };
+        if (Math.abs(diff) <= 0.3) return { success: true, message: `Settled at ${f(s * 100, 1)} cm. On the mark!` };
+        return { success: false, message: `Settled at ${f(s * 100, 1)} cm. ${diff < 0 ? "Add mass." : "Less mass."}` };
       },
       draw(r, ov) {
         r.clear("#fdf6e3", "#fffdf5");
@@ -278,39 +270,30 @@ const takeTheCurve: Level = {
   id: "6-3",
   chapter: 6,
   title: "Take the Curve",
-  hook: "You're designing the speed sign for a flat highway curve with a 50 m radius. On dry pavement μs = 0.6. Set the speed too low and drivers ignore the sign. Set it too high and cars skid off the road.",
-  goal: "Find a speed of at least 15.5 m/s that gets the car around the curve without skidding.",
+  hook: "Set the speed sign for a flat curve: radius 50 m, μs = 0.6.",
+  goal: "Fastest safe speed (at least 15.5 m/s).",
   controls: [{ key: "speed", label: "Car speed v", min: 5, max: 30, step: 0.5, value: 10, unit: "m/s" }],
   predict: {
-    prompt: "Halfway around, the road turns to perfect ice (no friction at all). Which way does the car go?",
-    options: [
-      "Straight ahead, along the tangent to the curve",
-      "Keeps following the curve",
-      "Straight outward, away from the center",
-      "Spirals in toward the center",
-    ],
+    prompt: "Sudden ice (no friction). The car goes…",
+    options: ["Straight ahead (tangent)", "Keeps curving", "Straight outward", "Spirals inward"],
     correct: 0,
-    why: "With no sideways force there's nothing to turn the car, so by Newton's 1st law it continues in a straight line in whatever direction it was moving: along the tangent.",
+    why: "No sideways force → straight line (1st law).",
   },
   explain: {
-    prompt: "What force keeps the car moving in a circle?",
-    options: [
-      "Static friction from the road, pointing toward the center of the curve",
-      "A centrifugal force pushing outward",
-      "The engine pushing the car forward",
-    ],
+    prompt: "What keeps the car on the circle?",
+    options: ["Friction, pointing to the center", "Centrifugal force, outward", "The engine"],
     correct: 0,
-    why: "Circular motion needs a net force toward the center: f = mv²/r. On a flat road only friction can supply it, and it can't exceed μs mg.",
+    why: "Turning needs mv²/r toward the center. Only friction supplies it.",
   },
   hints: [
-    "Watch the orange friction arrow and the readout. How close is the needed force to the maximum?",
-    "Needed: mv²/r. Available: μs mg. The mass cancels, so v_max = √(μs g r).",
-    "v_max = √(0.6 · 9.81 · 50) ≈ 17.2 m/s. Anything from 15.5 to 17 m/s works.",
+    "Compare “needed” with “max” friction.",
+    "v_max = √(μs g r).",
+    "√(0.6 · 9.81 · 50) ≈ 17.2 m/s.",
   ],
   journal: {
     title: "Circular motion",
     tex: String.raw`f_c = ma_c = \frac{mv^2}{r} \le \mu_s mg \;\Rightarrow\; v_{max} = \sqrt{\mu_s g r}`,
-    note: "Turning requires a force toward the center. Double the speed and you need four times the force.",
+    note: "Turning needs a force toward the center.",
   },
   view: { xMin: -20, xMax: 60, yMin: -58, yMax: 58 },
   graph: {
@@ -371,9 +354,9 @@ const takeTheCurve: Level = {
       },
       isDone: () => done || sim.t > 60,
       outcome() {
-        if (offRoad) return { success: false, message: `At ${f(v)} m/s the car needed ${f((CAR_M * v * v) / R_CURVE / 1000, 1)} kN of sideways friction, but the road can only give ${f(fmax / 1000, 1)} kN. It skidded off the road.` };
-        if (v < MIN_FAST) return { success: false, message: `Safe at ${f(v)} m/s, but drivers will ignore a sign that low. Go faster (at least 15.5 m/s).` };
-        return { success: true, message: `Made it around at ${f(v)} m/s using ${f(((v * v) / R_CURVE / (MU_S_ROAD * G)) * 100, 0)}% of the available friction. Great sign!` };
+        if (offRoad) return { success: false, message: `Skidded! Needed ${f((CAR_M * v * v) / R_CURVE / 1000, 1)} kN, road gives ${f(fmax / 1000, 1)} kN.` };
+        if (v < MIN_FAST) return { success: false, message: "Safe, but too slow. Go ≥ 15.5 m/s." };
+        return { success: true, message: `Made it at ${f(v)} m/s, using ${f(((v * v) / R_CURVE / (MU_S_ROAD * G)) * 100, 0)}% of the grip!` };
       },
       draw(r, ov) {
         r.clear("#bbf7d0", "#dcfce7");

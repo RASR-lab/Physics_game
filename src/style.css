@@ -151,7 +151,7 @@ h1, h2, h3 { margin: 0; line-height: 1.2; }
 .done-card { border: 2px solid var(--win); background: linear-gradient(180deg, #f0fbf6, #fff); }
 .done-card h2 { color: var(--win); font-size: 1.25rem; }
 .star-row .stars { font-size: 2rem; }
-.star-why { list-style: none; padding: 0; margin: 0.3rem 0 0.6rem; font-size: 0.9rem; }
+.star-why { list-style: none; padding: 0; margin: 0.3rem 0 0.6rem; font-size: 0.9rem; display: flex; gap: 1rem; }
 .star-why .miss { color: var(--muted); }
 .journal-unlock { background: #fff; border: 1px dashed var(--line); border-radius: 10px; padding: 0.6rem 0.75rem; overflow-x: auto; }
 .journal-unlock p { margin: 0.2rem 0; }

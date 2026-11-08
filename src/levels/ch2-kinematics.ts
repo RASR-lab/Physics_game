@@ -14,34 +14,30 @@ const stopAtTheLine: Level = {
   id: "2-1",
   chapter: 2,
   title: "Stop at the Line",
-  hook: "You're driving at 20 m/s (about 45 mph) when you spot a crosswalk 40 m ahead. You hit the brakes right away.",
-  goal: "Pick a braking deceleration so the car stops within 1.5 m before the stop line, without crossing it.",
+  hook: "Car at 20 m/s. Crosswalk 40 m ahead. Brake!",
+  goal: "Stop 0–1.5 m before the line.",
   controls: [{ key: "decel", label: "Braking deceleration", min: 1, max: 10, step: 0.1, value: 3, unit: "m/s²" }],
   predict: {
-    prompt: "Same brakes, but the car is going twice as fast. How much distance does it need to stop?",
-    options: ["The same distance", "Twice as far", "Four times as far", "Half as far"],
+    prompt: "Twice the speed, same brakes. Stopping distance?",
+    options: ["Same", "2× farther", "4× farther", "Half"],
     correct: 2,
-    why: "Stopping distance is Δx = v₀² / 2a. Speed is squared, so doubling speed makes the distance 2² = 4 times larger.",
+    why: "Δx = v₀²/2a. Speed is squared: 2× speed → 4× distance.",
   },
   explain: {
-    prompt: "Look at the strobe dots under the car. Why do they get closer together as the car stops?",
-    options: [
-      "The car covers less distance in each equal time step because its velocity is decreasing",
-      "The brakes get stronger near the end",
-      "The camera is zooming in",
-    ],
+    prompt: "Why do the dots get closer together?",
+    options: ["The car slows, so it covers less each 0.5 s", "The brakes get stronger", "The camera zooms in"],
     correct: 0,
-    why: "Dots are dropped every 0.5 s. With constant deceleration the velocity drops by the same amount each step, so each gap is shorter than the last.",
+    why: "Same time between dots. Slower car → smaller gaps.",
   },
   hints: [
-    "Bigger deceleration means stronger brakes and a shorter stop. Too far? Brake harder.",
-    "Use v² = v₀² + 2aΔx. At the end the car is stopped, so v = 0.",
-    "0 = 20² − 2·a·40  →  a = 400 / 80 = 5 m/s². Anything from 5.0 to 5.1 lands in the zone.",
+    "Stopped too far? Brake harder.",
+    "Use v² = v₀² + 2aΔx with v = 0.",
+    "a = 20² ÷ (2 · 40) = 5 m/s².",
   ],
   journal: {
     title: "Stopping distance",
     tex: String.raw`v^2 = v_0^2 + 2a\Delta x \;\Rightarrow\; \Delta x_{stop} = \frac{v_0^2}{2a}`,
-    note: "Twice the speed means four times the stopping distance.",
+    note: "2× speed → 4× stopping distance.",
   },
   view: { xMin: -4, xMax: 48, yMin: -8, yMax: 6, anchor: "bottom" },
   graph: { title: "Velocity vs. time", yLabel: "v (m/s)", tMax: 8, yMin: 0, yMax: 22, series: [{ label: "v", color: COLORS.velocity }] },
@@ -75,9 +71,9 @@ const stopAtTheLine: Level = {
       outcome() {
         const x = car.pos.x;
         const gap = STOP_LINE - x;
-        if (gap < 0) return { success: false, message: `The car stopped ${f(-gap)} m past the stop line, in the crosswalk. Brake harder.` };
-        if (gap > 1.5) return { success: false, message: `The car stopped ${f(gap)} m before the line. That's safe, but more than 1.5 m short. Brake a little more gently.` };
-        return { success: true, message: `The car stopped ${f(gap, 2)} m before the line. Perfect stop!` };
+        if (gap < 0) return { success: false, message: `Stopped ${f(-gap)} m past the line. Brake harder.` };
+        if (gap > 1.5) return { success: false, message: `Stopped ${f(gap)} m short. Brake less.` };
+        return { success: true, message: `Stopped ${f(gap, 2)} m before the line!` };
       },
       draw(r, ov) {
         r.clear();
@@ -120,34 +116,30 @@ const twoSecondDrop: Level = {
   id: "2-2",
   chapter: 2,
   title: "The Two-Second Drop",
-  hook: "A film crew needs a shot where a bowling ball and a tennis ball are dropped together and fall for exactly 2.0 s. The scene is on the Moon set: a vacuum chamber with Earth gravity and no air.",
-  goal: "Choose the drop height so the fall lasts 2.0 s (±0.05 s).",
+  hook: "Drop a bowling ball and a tennis ball together. No air.",
+  goal: "Make the fall last 2.0 s (±0.05 s).",
   controls: [{ key: "h", label: "Drop height", min: 1, max: 40, step: 0.5, value: 10, unit: "m" }],
   predict: {
-    prompt: "There's no air. The bowling ball (7 kg) and tennis ball (0.06 kg) are released together. Which hits the ground first?",
-    options: ["The bowling ball", "The tennis ball", "They land at the same time"],
+    prompt: "Which lands first?",
+    options: ["Bowling ball (7 kg)", "Tennis ball (0.06 kg)", "Same time"],
     correct: 2,
-    why: "Gravity pulls harder on the heavier ball, but it also has more mass to accelerate. a = F/m = mg/m = g for both, so they fall together.",
+    why: "Heavier = more pull, but also more mass. a = g for both.",
   },
   explain: {
-    prompt: "Doubling the height did NOT double the fall time. Why not?",
-    options: [
-      "The ball keeps speeding up, so later meters take less time (Δy = ½gt², so t ∝ √h)",
-      "Gravity is weaker higher up",
-      "Air resistance slows it down at the top",
-    ],
+    prompt: "2× height didn't give 2× time. Why?",
+    options: ["It keeps speeding up (t ∝ √h)", "Gravity is weaker up high", "Air slows it"],
     correct: 0,
-    why: "Height grows with t². To double the time you need four times the height.",
+    why: "Δy = ½gt². 2× time needs 4× height.",
   },
   hints: [
-    "Try 10 m first and read the time. Is it more or less than 2 s?",
-    "Use Δy = ½ g t² with g = 9.81 m/s².",
-    "h = ½ · 9.81 · (2.0)² = 19.6 m. Try 19.5 m.",
+    "Try 10 m. Too short or too long?",
+    "Use Δy = ½ g t².",
+    "h = ½ · 9.81 · 2² ≈ 19.6 m.",
   ],
   journal: {
     title: "Free fall",
     tex: String.raw`\Delta y = \tfrac12 g t^2 \qquad a = \frac{F}{m} = \frac{mg}{m} = g`,
-    note: "Without air, all objects fall with the same acceleration g = 9.81 m/s², whatever their mass.",
+    note: "No air → everything falls at g = 9.81 m/s².",
   },
   view: { xMin: -6, xMax: 6, yMin: -1, yMax: 22 },
   graph: {
@@ -193,12 +185,9 @@ const twoSecondDrop: Level = {
       outcome() {
         const t = land[0]!;
         const same = Math.abs(land[0]! - land[1]!) < 1e-6;
-        const both = same ? "Both balls hit the ground at the same instant" : "The balls landed";
-        if (Math.abs(t - TARGET_T) <= 0.05) return { success: true, message: `${both} after ${f(t, 2)} s. That's a wrap!` };
-        return {
-          success: false,
-          message: `${both} after ${f(t, 2)} s. The director needs 2.00 s. ${t < TARGET_T ? "Drop from higher." : "Drop from lower."}`,
-        };
+        const both = same ? "Both landed together" : "Landed";
+        if (Math.abs(t - TARGET_T) <= 0.05) return { success: true, message: `${both} at ${f(t, 2)} s!` };
+        return { success: false, message: `${both} at ${f(t, 2)} s. Need 2.00 s. ${t < TARGET_T ? "Go higher." : "Go lower."}` };
       },
       draw(r, ov) {
         r.setView(sim.view!());
@@ -254,33 +243,33 @@ const matchTheGraph: Level = {
   id: "2-3",
   chapter: 2,
   title: "Match the Graph",
-  hook: "A self-driving car company sent you a velocity–time graph (the dashed line). Program the car so its motion matches it exactly.",
-  goal: "Set the starting velocity and acceleration so your v–t line sits on the dashed target line for the full 6 s.",
+  hook: "Program a self-driving car to follow the dashed graph.",
+  goal: "Your v–t line must sit on the dashed line.",
   controls: [
     { key: "v0", label: "Starting velocity v₀", min: -4, max: 10, step: 0.5, value: 0, unit: "m/s" },
     { key: "a", label: "Acceleration a", min: -3, max: 3, step: 0.25, value: 0, unit: "m/s²" },
   ],
   predict: {
-    prompt: "A straight line that slopes upward on a velocity–time graph means the car is…",
-    options: ["Moving at a constant speed", "Speeding up at a steady rate", "Stopped", "Moving backward"],
+    prompt: "A line sloping up on a v–t graph means…",
+    options: ["Constant speed", "Speeding up steadily", "Stopped", "Going backward"],
     correct: 1,
-    why: "On a v–t graph the slope is the acceleration. A constant upward slope means the velocity increases by the same amount every second.",
+    why: "Slope = acceleration. Steady slope = steady speed-up.",
   },
   explain: {
-    prompt: "On a velocity–time graph, what does the slope of the line tell you?",
-    options: ["The acceleration", "The position", "The distance to the finish"],
+    prompt: "On a v–t graph, the slope is…",
+    options: ["Acceleration", "Position", "Distance left"],
     correct: 0,
-    why: "a = Δv/Δt, which is rise over run on a v–t graph. Where the line crosses t = 0 gives v₀.",
+    why: "a = Δv/Δt = rise/run. The start value is v₀.",
   },
   hints: [
-    "Two numbers control the line: where it starts (at t = 0) and how steep it is.",
-    "Read v at t = 0 from the dashed line, which gives v₀. Then find how much v grows each second, which gives a.",
-    "The dashed line starts at 2 m/s and reaches 11 m/s at t = 6 s: a = (11 − 2)/6 = 1.5 m/s².",
+    "Two things: where the line starts, how steep it is.",
+    "Start (t = 0) → v₀. Steepness → a.",
+    "v₀ = 2 m/s. a = (11 − 2)/6 = 1.5 m/s².",
   ],
   journal: {
     title: "Velocity and acceleration",
     tex: String.raw`v = v_0 + at \qquad a = \frac{\Delta v}{\Delta t}`,
-    note: "On a v–t graph, the intercept is v₀ and the slope is a.",
+    note: "Start value = v₀. Slope = a.",
   },
   view: { xMin: -10, xMax: 40, yMin: -4, yMax: 8 },
   graph: {
@@ -313,11 +302,11 @@ const matchTheGraph: Level = {
       },
       isDone: () => sim.t >= T_END - 1e-9,
       outcome() {
-        if (maxErr < 0.1) return { success: true, message: "Your v–t line sits right on the target. The car's motion matches!" };
+        if (maxErr < 0.1) return { success: true, message: "Perfect match!" };
         const tips: string[] = [];
-        if (Math.abs(p.v0 - TV0) > 0.01) tips.push(`your line starts at ${f(p.v0)} m/s at t = 0 (check v₀)`);
-        if (Math.abs(p.a - TA) > 0.01) tips.push(`your slope is ${f(p.a, 2)} m/s per second (check a)`);
-        return { success: false, message: `Not a match yet: ${tips.join(", and ")}.` };
+        if (Math.abs(p.v0 - TV0) > 0.01) tips.push("start (v₀) is off");
+        if (Math.abs(p.a - TA) > 0.01) tips.push("slope (a) is off");
+        return { success: false, message: `No match: ${tips.join(" and ")}.` };
       },
       draw(r, ov) {
         r.setView(sim.view!());

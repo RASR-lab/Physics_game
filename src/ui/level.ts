@@ -111,7 +111,7 @@ export function renderLevel(root: HTMLElement, level: Level, opts: { tutorialCha
           "div.data",
           { "data-tour": "datarow" },
           level.graph ? h("div.graph-wrap", { "data-tour": "graph" }, graphCanvas) : null,
-          h("div.data-panel", { "data-tour": "data" }, h("h3", {}, "Live data"), readoutBox, h("h3", {}, "The physics, right now"), eqBox),
+          h("div.data-panel", { "data-tour": "data" }, h("h3", {}, "Data"), readoutBox, h("h3", {}, "Equation"), eqBox),
         ),
       ),
       h(
@@ -152,11 +152,11 @@ export function renderLevel(root: HTMLElement, level: Level, opts: { tutorialCha
         prediction = i;
         renderPredict();
       }));
-      body.push(h("button.btn.primary", { disabled: prediction < 0, onclick: () => lockPrediction() }, "Lock in my prediction"));
+      body.push(h("button.btn.primary", { disabled: prediction < 0, onclick: () => lockPrediction() }, "Lock it in"));
     } else {
-      body.push(h("p.picked", {}, "Your prediction: ", h("strong", {}, q.options[prediction])));
+      body.push(h("p.picked", {}, "You guessed: ", h("strong", {}, q.options[prediction])));
       if (predictionRevealed) body.push(verdict(prediction === q.correct, q));
-      else body.push(h("p.small", {}, "Run the simulation to check it."));
+      else body.push(h("p.small", {}, "Launch to check."));
     }
     predictBox.replaceChildren(...body);
   }
@@ -174,7 +174,7 @@ export function renderLevel(root: HTMLElement, level: Level, opts: { tutorialCha
     const active = phase === "play";
     playBox.className = `step ${phase === "predict" ? "pending" : active ? "active" : "complete"}`;
     const body: Node[] = [h("h2", {}, h("span.step-n", {}, "2"), "Play")];
-    if (phase === "predict") body.push(h("p.small", {}, "Make your prediction first."));
+    if (phase === "predict") body.push(h("p.small", {}, "Predict first."));
     else {
       body.push(controlsBox, h("div.row", {}, h("button.btn.primary", { onclick: () => launch(), disabled: running }, "▶ Launch"), hintBtn), outcomeBox, hintList);
       if (attempts > 0) body.push(h("p.small", {}, `Attempts: ${attempts}`));
@@ -186,7 +186,7 @@ export function renderLevel(root: HTMLElement, level: Level, opts: { tutorialCha
   function renderExplain() {
     if (phase === "predict" || phase === "play") {
       explainBox.className = "step pending";
-      explainBox.replaceChildren(h("h2", {}, h("span.step-n", {}, "3"), "Explain"), h("p.small", {}, "Reach the goal to unlock."));
+      explainBox.replaceChildren(h("h2", {}, h("span.step-n", {}, "3"), "Explain"), h("p.small", {}, "Win to unlock."));
       return;
     }
     const q = level.explain;
@@ -194,13 +194,13 @@ export function renderLevel(root: HTMLElement, level: Level, opts: { tutorialCha
     const body: Node[] = [h("h2", {}, h("span.step-n", {}, "3"), "Explain"), h("p.q", {}, q.prompt)];
     if (explainAnswer < 0) {
       let pick = -1;
-      const submit = h("button.btn.primary", { disabled: true, onclick: () => answerExplain(pick) }, "Check my answer");
+      const submit = h("button.btn.primary", { disabled: true, onclick: () => answerExplain(pick) }, "Check");
       body.push(mcq(q, -1, (i) => {
         pick = i;
         submit.disabled = false;
       }), submit);
     } else {
-      body.push(h("p.picked", {}, "You answered: ", h("strong", {}, q.options[explainAnswer])), verdict(explainAnswer === q.correct, q));
+      body.push(verdict(explainAnswer === q.correct, q));
     }
     explainBox.replaceChildren(...body);
   }
@@ -231,16 +231,16 @@ export function renderLevel(root: HTMLElement, level: Level, opts: { tutorialCha
     const nxt = nextLevel(level.id);
     doneBox.className = "step done-card";
     doneBox.replaceChildren(
-      h("h2", {}, "Level complete!"),
+      h("h2", {}, "Level complete! 🎉"),
       h("div.star-row", {}, stars(nStars)),
       h(
         "ul.star-why",
         {},
-        h("li", {}, "★ Reached the goal"),
-        h("li", { className: prediction === level.predict.correct ? "" : "miss" }, `${prediction === level.predict.correct ? "★" : "☆"} Correct prediction`),
-        h("li", { className: explainAnswer === level.explain.correct ? "" : "miss" }, `${explainAnswer === level.explain.correct ? "★" : "☆"} Correct explanation`),
+        h("li", {}, "★ Goal"),
+        h("li", { className: prediction === level.predict.correct ? "" : "miss" }, `${prediction === level.predict.correct ? "★" : "☆"} Guess`),
+        h("li", { className: explainAnswer === level.explain.correct ? "" : "miss" }, `${explainAnswer === level.explain.correct ? "★" : "☆"} Explain`),
       ),
-      h("div.journal-unlock", {}, h("p.small", {}, "📓 Added to your Physics Journal:"), h("strong", {}, level.journal.title), texEl(level.journal.tex, true), h("p", {}, level.journal.note)),
+      h("div.journal-unlock", {}, h("p.small", {}, "📓 New in your Journal"), h("strong", {}, level.journal.title), texEl(level.journal.tex, true), h("p", {}, level.journal.note)),
       h(
         "div.row",
         {},
@@ -274,7 +274,7 @@ export function renderLevel(root: HTMLElement, level: Level, opts: { tutorialCha
     if (hintsShown >= level.hints.length) return;
     hintList.append(h("li", {}, level.hints[hintsShown]));
     hintsShown++;
-    hintBtn.textContent = hintsShown >= level.hints.length ? "💡 All hints shown" : `💡 Next hint (${hintsShown}/${level.hints.length})`;
+    hintBtn.textContent = hintsShown >= level.hints.length ? "💡 No more hints" : `💡 Hint (${hintsShown}/${level.hints.length})`;
     hintBtn.disabled = hintsShown >= level.hints.length;
   }
 
@@ -346,8 +346,8 @@ export function renderLevel(root: HTMLElement, level: Level, opts: { tutorialCha
     lastOutcome = o;
     outcomeShown = true;
     outcomeBox.className = `outcome ${o.success ? "win" : "fail"}`;
-    outcomeBox.replaceChildren(h("strong", {}, o.success ? "✅ Success! " : "❌ Not yet. "), o.message);
-    if (!o.success && attempts >= 2 && hintsShown === 0) outcomeBox.append(h("p.small", {}, "Stuck? A hint might help."));
+    outcomeBox.replaceChildren(h("strong", {}, o.success ? "✅ " : "❌ "), o.message);
+    if (!o.success && attempts >= 2 && hintsShown === 0) outcomeBox.append(h("p.small", {}, "Stuck? Try 💡."));
     if (!predictionRevealed) {
       predictionRevealed = true;
       renderPredict();
@@ -403,7 +403,7 @@ export function renderLevel(root: HTMLElement, level: Level, opts: { tutorialCha
     const ch = level.chapter;
     const isFirst = chapter.levels[0].id === level.id;
     if (!isFirst || opts.tutorialChapter !== undefined || !TUTORIALS[ch] || tutorialDone(ch)) return null;
-    return h("p.tut-banner", {}, "New to this chapter? ", h("a", { href: `#tutorial-${ch}` }, "🎓 Take the 3-minute guided tutorial"));
+    return h("p.tut-banner", {}, "New here? ", h("a", { href: `#tutorial-${ch}` }, "🎓 Quick tutorial"));
   }
 
   const api: LevelAPI = {
@@ -455,7 +455,7 @@ function verdict(ok: boolean, q: MCQ) {
   return h(
     "div",
     { className: `verdict ${ok ? "ok" : "no"}` },
-    h("strong", {}, ok ? "✓ You got it." : `✗ Not quite. The answer is: ${q.options[q.correct]}`),
+    h("strong", {}, ok ? "✓ Right!" : `✗ Answer: ${q.options[q.correct]}`),
     h("p", {}, q.why),
   );
 }

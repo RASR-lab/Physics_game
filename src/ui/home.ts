@@ -10,16 +10,16 @@ export function renderHome(root: HTMLElement) {
     h(
       "header.hero",
       {},
-      h("div.hero-inner", {}, h("h1", {}, "Physics Quest"), h("p.tag", {}, "Learn physics by predicting, playing, and checking. No physics background needed.")),
+      h("div.hero-inner", {}, h("h1", {}, "Physics Quest"), h("p.tag", {}, "Guess. Test. Learn physics.")),
       h("div.hero-stats", {}, h("span.big", {}, `${total}`), h("span", {}, ` / ${max} ★`)),
     ),
     h(
       "section.howto",
       { "aria-label": "How to play" },
-      step("1", "Predict", "Commit to a guess about what will happen."),
-      step("2", "Play", "Set real physical quantities and run the simulation."),
-      step("3", "Explain", "Check your thinking. Unlock the equation in your Journal."),
-      step("🎓", "New here?", "Each world starts with a guided tutorial on how to play and how to think."),
+      step("1", "Predict", "Guess first."),
+      step("2", "Play", "Run the experiment."),
+      step("3", "Explain", "Say why. Earn ⭐."),
+      step("🎓", "New?", "Start with the tutorial."),
     ),
     h(
       "main.worlds",
@@ -31,16 +31,16 @@ export function renderHome(root: HTMLElement) {
           h(
             "div.world-head",
             {},
-            h("span.chip", {}, `Chapter ${ch.number}`),
+            h("span.chip", {}, `Ch ${ch.number} · ${ch.title}`),
             h("h2", {}, ch.world),
-            h("p", {}, `${ch.title}: ${ch.blurb}`),
+            h("p", {}, ch.blurb),
           ),
           TUTORIALS[ch.number]
             ? h(
                 "a.tut-link",
                 { href: `#tutorial-${ch.number}` },
                 h("span", {}, "🎓"),
-                h("span.lv-title", {}, h("strong", {}, "Tutorial"), h("small", {}, "How to play & how to think")),
+                h("span.lv-title", {}, h("strong", {}, "Tutorial"), h("small", {}, "How to play")),
                 tutorialDone(ch.number) ? h("span.done-tag", {}, "✓ Done") : h("span.new", {}, "Start here"),
               )
             : null,
@@ -81,7 +81,7 @@ export function renderHome(root: HTMLElement) {
         },
         "Reset progress",
       ),
-      h("p.small", {}, "Prototype covering Chapters 2, 3, 5 and 6 of the PHYS 211 equation sheet. Progress is saved in this browser only."),
+      h("p.small", {}, "PHYS 211, Ch 2, 3, 5, 6. Progress saves in this browser."),
     ),
   );
 }

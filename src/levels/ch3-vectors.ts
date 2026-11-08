@@ -15,37 +15,33 @@ const droneDelivery: Level = {
   id: "3-1",
   chapter: 3,
   title: "Drone Delivery",
-  hook: "A pharmacy drone has to deliver medicine to a rooftop 30 m east and 40 m north of the launch pad. It can only fly in one straight line.",
-  goal: "Set the flight distance and direction (angle from east) so the drone lands within 1.5 m of the rooftop pad.",
+  hook: "Fly medicine to a roof 30 m east, 40 m north. One straight line.",
+  goal: "Land within 1.5 m of the pad.",
   controls: [
     { key: "dist", label: "Flight distance |d|", min: 0, max: 80, step: 1, value: 30, unit: "m" },
     { key: "angle", label: "Direction θ (from east)", min: 0, max: 90, step: 1, value: 30, unit: "°" },
   ],
   predict: {
-    prompt: "The rooftop is 30 m east and 40 m north. How far must the drone fly in one straight line?",
+    prompt: "How long is the straight-line flight?",
     options: ["70 m", "50 m", "35 m", "10 m"],
     correct: 1,
-    why: "The straight-line path is the hypotenuse: |d| = √(30² + 40²) = √2500 = 50 m. It's shorter than going 30 m and then 40 m.",
+    why: "√(30² + 40²) = 50 m. The shortcut beats 30 + 40.",
   },
   explain: {
-    prompt: "The drone flew 50 m. Why did it only end up 30 m east?",
-    options: [
-      "Only the x-component counts for east: 50 cos(53°) ≈ 30 m",
-      "The drone slowed down partway",
-      "Wind pushed it back",
-    ],
+    prompt: "It flew 50 m. Why only 30 m east?",
+    options: ["East part = 50 cos 53° ≈ 30 m", "It slowed down", "Wind pushed it"],
     correct: 0,
-    why: "A vector splits into components: d_x = d cos θ and d_y = d sin θ. Each component tells you how far it went in that direction.",
+    why: "dₓ = d cos θ, d_y = d sin θ.",
   },
   hints: [
-    "Picture a right triangle: 30 m along the bottom, 40 m up the side. The flight path is the long side.",
-    "Magnitude: |d| = √(dₓ² + d_y²). Angle: θ = tan⁻¹(d_y / dₓ).",
-    "|d| = 50 m and θ = tan⁻¹(40/30) ≈ 53°.",
+    "Picture a right triangle: 30 across, 40 up.",
+    "|d| = √(dₓ² + d_y²), θ = tan⁻¹(d_y/dₓ).",
+    "50 m at 53°.",
   ],
   journal: {
     title: "Vector components",
     tex: String.raw`d_x = d\cos\theta,\quad d_y = d\sin\theta,\quad |d| = \sqrt{d_x^2+d_y^2},\quad \theta=\tan^{-1}\!\frac{d_y}{d_x}`,
-    note: "Use cos and sin like this only when θ is measured from the x-axis.",
+    note: "Measure θ from the x-axis.",
   },
   view: { xMin: -6, xMax: 56, yMin: -5, yMax: 52 },
   graph: {
@@ -83,9 +79,8 @@ const droneDelivery: Level = {
       isDone: () => done,
       outcome() {
         const miss = drone.pos.sub(TARGET).len();
-        const where = `The drone landed at (${f(drone.pos.x)} m east, ${f(drone.pos.y)} m north)`;
-        if (miss <= 1.5) return { success: true, message: `${where}, ${f(miss, 2)} m from the pad. Delivered!` };
-        return { success: false, message: `${where}, ${f(miss)} m from the pad. Compare each component with (30, 40).` };
+        if (miss <= 1.5) return { success: true, message: `${f(miss, 2)} m from the pad. Delivered!` };
+        return { success: false, message: `Landed at (${f(drone.pos.x)}, ${f(drone.pos.y)}). Target: (30, 40).` };
       },
       draw(r, ov) {
         r.clear("#e8f5e9", "#f1f8e9");
@@ -144,34 +139,30 @@ const riverCrossing: Level = {
   id: "3-2",
   chapter: 3,
   title: "River Crossing",
-  hook: "You're piloting a ferry across a 60 m wide river. The ferry moves at 5 m/s through the water, and the current flows east at 3 m/s.",
-  goal: "Choose a heading so the ferry docks within 2 m of the pier directly across.",
+  hook: "Ferry: 5 m/s. Current: 3 m/s east. River: 60 m wide.",
+  goal: "Dock within 2 m of the pier straight across.",
   controls: [{ key: "heading", label: "Heading θ (from east)", min: 30, max: 150, step: 1, value: 90, unit: "°" }],
   predict: {
-    prompt: "You point the ferry straight across (θ = 90°). Where does it reach the far bank?",
-    options: ["Exactly at the pier", "Downstream (east) of the pier", "Upstream (west) of the pier"],
+    prompt: "Aim straight across. Where do you land?",
+    options: ["At the pier", "Downstream (east)", "Upstream (west)"],
     correct: 1,
-    why: "The ferry's velocity relative to the ground is its own velocity plus the current. The current keeps carrying it east the whole way across.",
+    why: "The current carries you east the whole way.",
   },
   explain: {
-    prompt: "Why did aiming upstream get you to the pier?",
-    options: [
-      "The upstream (west) component of the ferry's velocity cancels the 3 m/s current",
-      "Pointing upstream makes the ferry faster",
-      "The current is weaker near the pier",
-    ],
+    prompt: "Why does aiming upstream work?",
+    options: ["Its west part cancels the current", "It makes the ferry faster", "The current is weaker there"],
     correct: 0,
-    why: "v_ground = v_boat + v_current. To go straight across you need 5 cos θ + 3 = 0, so cos θ = −3/5 and θ ≈ 127°. The leftover 4 m/s carries you across.",
+    why: "Need 5 cos θ + 3 = 0, so θ ≈ 127°.",
   },
   hints: [
-    "Watch the three arrows. The ferry's path follows the vermillion (ground) arrow, not the direction the ferry points.",
-    "To land straight across, the east–west part of the ground velocity must be zero: 5 cos θ + 3 = 0.",
-    "cos θ = −0.6  →  θ ≈ 127°.",
+    "You move along v_ground, not where you point.",
+    "Make the east–west speed zero: 5 cos θ + 3 = 0.",
+    "θ ≈ 127°.",
   ],
   journal: {
     title: "Adding velocities",
     tex: String.raw`\vec v_{ground} = \vec v_{boat} + \vec v_{current} \qquad v_x = v\cos\theta + v_c,\; v_y = v\sin\theta`,
-    note: "Add vectors by adding their components.",
+    note: "Add vectors by adding components.",
   },
   view: { xMin: -40, xMax: 70, yMin: -8, yMax: 70 },
   graph: {
@@ -213,13 +204,10 @@ const riverCrossing: Level = {
       },
       isDone: () => done || sim.t > 60,
       outcome() {
-        if (lost) return { success: false, message: "The current swept the ferry far downstream before it reached the other bank. Aim more upstream." };
+        if (lost) return { success: false, message: "Swept away! Aim more upstream." };
         const x = ferry.pos.x;
-        if (Math.abs(x) <= 2) return { success: true, message: `Docked ${f(Math.abs(x), 2)} m from the pier after ${f(sim.t, 1)} s. Smooth crossing!` };
-        return {
-          success: false,
-          message: `Reached the far bank ${f(Math.abs(x))} m ${x > 0 ? "downstream (east)" : "upstream (west)"} of the pier. ${x > 0 ? "Aim more upstream." : "Aim a bit less upstream."}`,
-        };
+        if (Math.abs(x) <= 2) return { success: true, message: `Docked ${f(Math.abs(x), 2)} m from the pier!` };
+        return { success: false, message: `${f(Math.abs(x))} m ${x > 0 ? "east" : "west"} of the pier. Aim ${x > 0 ? "more" : "less"} upstream.` };
       },
       draw(r, ov) {
         r.clear("#cfe8c9", "#cfe8c9");
@@ -273,37 +261,33 @@ const canyonDrop: Level = {
   id: "3-3",
   chapter: 3,
   title: "Canyon Supply Drop",
-  hook: "Hikers are stranded on the far side of a canyon. Your launcher can lob a supply crate over the gap. There's no wind, so ignore air resistance.",
-  goal: "Choose launch speed and angle so the crate lands in the green zone (40–46 m away).",
+  hook: "Launch supplies over a canyon to stranded hikers. No air.",
+  goal: "Land in the green zone (40–46 m).",
   controls: [
     { key: "speed", label: "Launch speed v₀", min: 5, max: 30, step: 0.5, value: 15, unit: "m/s" },
     { key: "angle", label: "Launch angle θ", min: 10, max: 80, step: 1, value: 30, unit: "°" },
   ],
   predict: {
-    prompt: "At the very top of its arc, what is the crate's velocity?",
-    options: ["Zero. It stops for an instant", "Purely horizontal: vₓ is unchanged, v_y = 0", "Pointing straight down"],
+    prompt: "At the top of the arc, the velocity is…",
+    options: ["Zero", "Sideways only (v_y = 0)", "Straight down"],
     correct: 1,
-    why: "Gravity only changes the vertical velocity. At the top v_y = 0, but vₓ = v₀ cos θ is the same as at launch.",
+    why: "Gravity only changes v_y. vₓ never changes.",
   },
   explain: {
-    prompt: "On the graph, vₓ stayed perfectly flat while v_y dropped steadily. Why?",
-    options: [
-      "No horizontal force acts, so vₓ never changes. Gravity changes only v_y, by 9.81 m/s every second",
-      "The launcher keeps pushing it forward",
-      "Gravity pulls sideways as well as down",
-    ],
+    prompt: "Why did vₓ stay flat on the graph?",
+    options: ["No sideways force", "The launcher keeps pushing", "Gravity pulls sideways"],
     correct: 0,
-    why: "Horizontal and vertical motions are independent. aₓ = 0 and a_y = −g.",
+    why: "x and y are independent: aₓ = 0, a_y = −g.",
   },
   hints: [
-    "Turn on the trail and watch the ghosts. Are they evenly spaced left-to-right?",
-    "On flat ground the range is R = v₀² sin(2θ) / g. Which angle makes sin(2θ) as large as possible?",
-    "At θ = 45°, R = v₀²/g. For R ≈ 43 m: v₀ = √(43 · 9.81) ≈ 20.5 m/s.",
+    "Are the ghosts evenly spaced left-to-right?",
+    "Range: R = v₀² sin 2θ / g. Best angle?",
+    "45° and about 20.5 m/s.",
   ],
   journal: {
     title: "Projectile motion",
     tex: String.raw`x = v_0\cos\theta\, t,\quad y = v_0\sin\theta\, t - \tfrac12 g t^2,\quad R = \frac{v_0^2\sin 2\theta}{g}`,
-    note: "Horizontal velocity stays constant; vertical velocity changes by −9.81 m/s each second.",
+    note: "vₓ stays constant. v_y drops 9.81 m/s every second.",
   },
   view: { xMin: -4, xMax: 62, yMin: -27, yMax: 22 },
   graph: {
@@ -360,10 +344,10 @@ const canyonDrop: Level = {
       isDone: () => done || sim.t > 20,
       outcome() {
         const x = crate.pos.x;
-        if (inCanyon) return { success: false, message: `The crate fell into the canyon ${f(x)} m out. It needs to travel farther.` };
-        if (x >= ZONE[0] && x <= ZONE[1]) return { success: true, message: `The crate landed ${f(x)} m away, right in the drop zone. The hikers are saved!` };
-        if (x < NEAR_EDGE) return { success: false, message: `The crate landed only ${f(x)} m away, still on your side.` };
-        return { success: false, message: `The crate landed ${f(x)} m away. The zone is 40–46 m. ${x < ZONE[0] ? "A little farther." : "Too far."}` };
+        if (inCanyon) return { success: false, message: `Fell into the canyon at ${f(x)} m. Go farther.` };
+        if (x >= ZONE[0] && x <= ZONE[1]) return { success: true, message: `Landed at ${f(x)} m. Hikers saved!` };
+        if (x < NEAR_EDGE) return { success: false, message: `Landed at ${f(x)} m, still on your side.` };
+        return { success: false, message: `Landed at ${f(x)} m. ${x < ZONE[0] ? "A bit farther." : "Too far."}` };
       },
       draw(r, ov) {
         r.clear("#ffe9c7", "#fff7ea");

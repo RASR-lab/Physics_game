@@ -8,7 +8,7 @@ export function renderJournal(root: HTMLElement) {
     h(
       "main.journal",
       {},
-      h("p.lead", {}, "Every level you finish adds its key idea here. Use it to review for exams."),
+      h("p.lead", {}, "Your equations, unlocked as you play."),
       ...CHAPTERS.map((ch) =>
         h(
           "section.j-chapter",
@@ -17,8 +17,8 @@ export function renderJournal(root: HTMLElement) {
           ...ch.levels.map((lv) => {
             const done = getLevel(lv.id)?.completed;
             if (!done)
-              return h("div.j-entry.locked", {}, h("strong", {}, `🔒 ${lv.journal.title}`), h("p", {}, h("a", { href: `#level-${lv.id}` }, `Finish “${lv.title}” to unlock`)));
-            return h("div.j-entry", {}, h("strong", {}, lv.journal.title), texEl(lv.journal.tex, true), h("p", {}, lv.journal.note), h("p.small", {}, `From level ${lv.id}: ${lv.title}`));
+              return h("div.j-entry.locked", {}, h("strong", {}, `🔒 ${lv.journal.title}`), h("p", {}, h("a", { href: `#level-${lv.id}` }, `Play “${lv.title}”`)));
+            return h("div.j-entry", {}, h("strong", {}, lv.journal.title), texEl(lv.journal.tex, true), h("p", {}, lv.journal.note), h("p.small", {}, `Level ${lv.id}`));
           }),
         ),
       ),

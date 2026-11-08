@@ -41,7 +41,7 @@ export function startTour(tut: Tutorial, api: LevelAPI): () => void {
       h("h2", { id: "tour-title" }, s.title),
       h("p", {}, s.body),
       s.think?.length
-        ? h("div.tour-think", {}, h("strong", {}, last ? "✅ Questions to ask yourself" : "🧠 What to think about"), h("ul", {}, ...s.think.map((t) => h("li", {}, t))))
+        ? h("div.tour-think", {}, h("strong", {}, last ? "✅ Ask yourself" : "🧠 Think"), h("ul", {}, ...s.think.map((t) => h("li", {}, t))))
         : "",
       waitNote,
       h("div.tour-nav", {}, backBtn, nextBtn),
