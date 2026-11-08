@@ -81,7 +81,7 @@ export function renderHome(root: HTMLElement) {
         },
         "Reset progress",
       ),
-      h("p.small", {}, "PHYS 211, Ch 2, 3, 5, 6. Progress saves in this browser."),
+      h("p.small", {}, "PHYS 211, Ch 2, 3, 5, 6, 10–13. Progress saves in this browser."),
     ),
   );
 }
