@@ -121,7 +121,7 @@ export const PICK_EQUATION: Record<string, PickEquation> = {
   "10-1": { correct: "wSq", distractors: ["wLin", "thQuad", "vTan"], why: "You know ω₀, the final ω (0) and the angle (turns × 2π), and want α. No time is given, so use ω² = ω₀² + 2αΔθ, the rotational twin of v² = v₀² + 2aΔx." },
   "10-2": { correct: "vTan", distractors: ["aCent", "wLin", "arc"], why: "Speed along the circle is v_t = rω. Every rider shares ω, but r is different." },
   "10-3": { correct: "rollEnergy", distractors: ["vSq", "kRot", "newton2Rot"], why: "Height energy turns into moving energy AND spinning energy, with v = rω linking them. Using v² = 2gh alone treats the cylinder like a sliding block." },
-  "10-4": { correct: "vTan", distractors: ["aCent", "wSq", "torque"], why: "The chain's speed is the same on both gears: r_front ω_pedal = r_rear ω_wheel. Then the bike's speed is v = R ω_wheel. That's v_t = rω, used three times." },
+  "10-4": { correct: "vTan", distractors: ["aCent", "wSq", "torque"], why: "A wheel rolling without slipping moves the bike v = rω (v_cm = rω on the sheet). You know Mom's speed v and Leo's ω, so solve for r = v ÷ ω." },
   "10-5": { correct: "aCent", distractors: ["vTan", "wSq", "kRot"], why: "a_c = rω² links the acceleration you need to the spin rate. Then convert ω to rpm." },
   /* ---- Ch 11 ---- */
   "11-1": { correct: "torque", distractors: ["angMom", "fCent", "kRot"], why: "Balance means the torques cancel: each weight gives τ = rF, so set m₁g·r₁ = m₂g·r₂." },
