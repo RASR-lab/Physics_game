@@ -1,12 +1,12 @@
-import { CHAPTERS, ALL_LEVELS } from "../levels";
+import { VISIBLE_CHAPTERS, VISIBLE_LEVELS } from "../levels";
 import { getLevel, resetProgress, totalStars, tutorialDone } from "../game/progress";
 import { TUTORIALS } from "../tutorials";
 import { h, stars } from "./dom";
 import { MAX_STARS } from "./level";
 
 export function renderHome(root: HTMLElement) {
-  const total = totalStars();
-  const max = ALL_LEVELS.length * MAX_STARS;
+  const total = totalStars(VISIBLE_LEVELS.map((l) => l.id));
+  const max = VISIBLE_LEVELS.length * MAX_STARS;
   root.replaceChildren(
     h(
       "header.hero",
@@ -26,7 +26,7 @@ export function renderHome(root: HTMLElement) {
     h(
       "main.worlds",
       {},
-      ...CHAPTERS.map((ch) =>
+      ...VISIBLE_CHAPTERS.map((ch) =>
         h(
           "section.world",
           { style: { "--world": ch.color } },
@@ -83,7 +83,7 @@ export function renderHome(root: HTMLElement) {
         },
         "Reset progress",
       ),
-      h("p.small", {}, "PHYS 211, Ch 2, 3, 5, 6, 10–13. Progress saves in this browser."),
+      h("p.small", {}, `PHYS 211, Ch ${chapterRange(VISIBLE_CHAPTERS.map((c) => c.number))}. Progress saves in this browser.`),
     ),
   );
 }
@@ -103,6 +103,17 @@ function confirmReset() {
     if (b) b.textContent = "Reset progress";
   }, 3000);
   return false;
+}
+
+/** [10, 11, 12, 13] → "10–13"; [2, 3, 5, 6, 10] → "2–3, 5–6, 10". */
+export function chapterRange(nums: number[]): string {
+  const runs: number[][] = [];
+  for (const n of nums) {
+    const last = runs[runs.length - 1];
+    if (last && n === last[last.length - 1] + 1) last.push(n);
+    else runs.push([n]);
+  }
+  return runs.map((r) => (r.length > 1 ? `${r[0]}–${r[r.length - 1]}` : `${r[0]}`)).join(", ");
 }
 
 function step(num: string, title: string, text: string) {

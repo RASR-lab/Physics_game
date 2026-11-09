@@ -17,6 +17,7 @@ export const CHAPTERS: Chapter[] = [
     blurb: "Position, velocity, acceleration, free fall",
     color: "#D55E00",
     levels: chapter2,
+    hidden: true,
   },
   {
     number: 3,
@@ -25,6 +26,7 @@ export const CHAPTERS: Chapter[] = [
     blurb: "Components, adding vectors, projectiles",
     color: "#0072B2",
     levels: chapter3,
+    hidden: true,
   },
   {
     number: 5,
@@ -33,6 +35,7 @@ export const CHAPTERS: Chapter[] = [
     blurb: "Inertia, F = ma, action–reaction",
     color: "#CC79A7",
     levels: chapter5,
+    hidden: true,
   },
   {
     number: 6,
@@ -41,6 +44,7 @@ export const CHAPTERS: Chapter[] = [
     blurb: "Friction, springs, circular motion",
     color: "#009E73",
     levels: chapter6,
+    hidden: true,
   },
   {
     number: 10,
@@ -76,13 +80,28 @@ export const CHAPTERS: Chapter[] = [
   },
 ];
 
+/** Every level, including hidden chapters (used by the tests so hidden content keeps working). */
 export const ALL_LEVELS: LevelDef[] = CHAPTERS.flatMap((c) => c.levels);
+
+/** Chapters shown on the webpage. Chapters 2, 3, 5 and 6 are hidden for now (see Chapter.hidden). */
+export const VISIBLE_CHAPTERS: Chapter[] = CHAPTERS.filter((c) => !c.hidden);
+export const VISIBLE_LEVELS: LevelDef[] = VISIBLE_CHAPTERS.flatMap((c) => c.levels);
+
+export function isChapterVisible(n: number): boolean {
+  return VISIBLE_CHAPTERS.some((c) => c.number === n);
+}
 
 export function findLevel(id: string): LevelDef | undefined {
   return ALL_LEVELS.find((l) => l.id === id);
 }
 
+/** A level the player is allowed to open (not in a hidden chapter). */
+export function findVisibleLevel(id: string): LevelDef | undefined {
+  return VISIBLE_LEVELS.find((l) => l.id === id);
+}
+
+/** The next level on the map, skipping hidden chapters. */
 export function nextLevel(id: string): LevelDef | undefined {
-  const i = ALL_LEVELS.findIndex((l) => l.id === id);
-  return i >= 0 ? ALL_LEVELS[i + 1] : undefined;
+  const i = VISIBLE_LEVELS.findIndex((l) => l.id === id);
+  return i >= 0 ? VISIBLE_LEVELS[i + 1] : undefined;
 }

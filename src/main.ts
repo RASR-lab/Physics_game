@@ -1,6 +1,6 @@
 import "katex/dist/katex.min.css";
 import "./style.css";
-import { findLevel } from "./levels";
+import { findLevel, findVisibleLevel, isChapterVisible } from "./levels";
 import { renderHome } from "./ui/home";
 import { renderJournal } from "./ui/journal";
 import { renderLevel } from "./ui/level";
@@ -17,7 +17,8 @@ function route() {
   const m = hash.match(/^level-(\d+-\d+)$/);
   window.scrollTo(0, 0);
   if (m) {
-    const lv = findLevel(m[1]);
+    // Levels in hidden chapters fall through to the map.
+    const lv = findVisibleLevel(m[1]);
     if (lv) {
       document.title = `${lv.title} · Physics Quest`;
       cleanup = renderLevel(app, lv, { restart: route });
@@ -25,7 +26,7 @@ function route() {
     }
   }
   const t = hash.match(/^tutorial-(\d+)$/);
-  if (t && TUTORIALS[+t[1]]) {
+  if (t && TUTORIALS[+t[1]] && isChapterVisible(+t[1])) {
     const tut = TUTORIALS[+t[1]];
     const lv = findLevel(tut.levelId)!;
     document.title = `${tut.title} · Physics Quest`;

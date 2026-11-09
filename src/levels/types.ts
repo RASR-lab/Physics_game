@@ -112,4 +112,10 @@ export interface Chapter {
   blurb: string;
   color: string;
   levels: LevelDef[];
+  /**
+   * Hidden chapters stay in the code (and in the tests) but are left off the map, the journal,
+   * the star total and "Next level", and their #level / #tutorial links go to the map.
+   * Delete the flag to bring a chapter back.
+   */
+  hidden?: boolean;
 }

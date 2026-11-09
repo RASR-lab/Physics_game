@@ -1,4 +1,4 @@
-import { CHAPTERS } from "../levels";
+import { VISIBLE_CHAPTERS } from "../levels";
 import { getLevel } from "../game/progress";
 import { h, texEl } from "./dom";
 
@@ -9,7 +9,7 @@ export function renderJournal(root: HTMLElement) {
       "main.journal",
       {},
       h("p.lead", {}, "Your equations, unlocked as you play."),
-      ...CHAPTERS.map((ch) =>
+      ...VISIBLE_CHAPTERS.map((ch) =>
         h(
           "section.j-chapter",
           { style: { "--world": ch.color } },
