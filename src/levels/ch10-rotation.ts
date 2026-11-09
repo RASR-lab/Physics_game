@@ -2,10 +2,11 @@ import { G } from "../physics/core";
 import { COLORS } from "../physics/forces";
 import { Vec2, rad } from "../physics/vec2";
 import type { Sim } from "./types";
+import type { Renderer } from "../render/renderer";
 import { ground, hillsScreen, lawn, sky, wall } from "../render/art/backdrops";
 import { personTop, ramp } from "../render/art/props";
 import { noisePattern } from "../render/art/core";
-import { defineLevel, f, n, snap } from "./util";
+import { defineLevel, f, n, roundTo, snap } from "./util";
 
 const TAU = 2 * Math.PI;
 
@@ -442,132 +443,224 @@ const rollingRace = defineLevel((v) => {
 });
 
 /* ------------------------------------------------------------------ */
-/* 10-4  Bike Gears   (v = rω, linked by a chain)                       */
+/* 10-4  Keep Up with Mom   (rolling wheel: v = rω)                    */
 /* ------------------------------------------------------------------ */
-const bikeGears = defineLevel((v) => {
-  const WP = v.num(9.4, 1, 0.1); // pedal spin, rad/s (about 90 rpm)
-  const VT = v.num(8, 1); // target speed, m/s
-  const NF = 44; // chainring teeth
-  const RW = 0.34; // wheel radius, m
-  const speed = (nr: number) => (RW * WP * NF) / nr;
-  const nEx = (RW * WP * NF) / VT;
-  const nc = { min: 11, max: 34, step: 1 };
-  const T_END = 5;
+
+/** Thick round-capped line in world coords, `w` in meters (for limbs). */
+function limb(r: Renderer, a: Vec2, b: Vec2, color: string, w: number) {
+  const c = r.ctx;
+  c.save();
+  c.lineCap = "round";
+  c.strokeStyle = color;
+  c.lineWidth = Math.max(2, w * r.scale);
+  c.beginPath();
+  c.moveTo(r.sx(a.x), r.sy(a.y));
+  c.lineTo(r.sx(b.x), r.sy(b.y));
+  c.stroke();
+  c.restore();
+}
+
+/**
+ * Side-view bike and rider, everything scaled by the wheel radius R.
+ * The bike's center (crank) is at x; the road is at y0; th = angle the wheels have rolled (rad).
+ * The front tyre carries a red paint dot that starts at the bottom, so it touches the road once per turn.
+ */
+function bikeRider(r: Renderer, x: number, y0: number, R: number, th: number, frame: string, shirt: string, name: string) {
+  const P = (u: number, w: number) => new Vec2(x + u * R, y0 + w * R);
+  const rear = P(-1.6, 1),
+    front = P(1.6, 1),
+    crank = P(0, 1),
+    seatTube = P(-0.29, 2.2),
+    head = P(1.03, 2.2),
+    hip = P(-0.38, 2.68),
+    hand = P(1.15, 2.72);
+  const spin = -th - Math.PI / 2; // clockwise when riding right; marker starts at the bottom
+  const pedal = th / 2.2; // pedals turn a bit slower than the wheels (just for looks)
+  const pants = "#334155",
+    skin = "#f1c27d";
+  const leg = (sign: number, color: string) => {
+    const foot = crank.add(new Vec2(Math.cos(-pedal + (sign < 0 ? Math.PI : 0)), Math.sin(-pedal + (sign < 0 ? Math.PI : 0))).scale(0.45 * R));
+    const d = foot.sub(hip);
+    const L = 1.17 * R;
+    const len = Math.hypot(d.x, d.y);
+    const k = Math.sqrt(Math.max(0, L * L - (len * len) / 4));
+    const knee = hip.add(d.scale(0.5)).add(new Vec2(-d.y, d.x).scale(k / len));
+    limb(r, hip, knee, color, 0.24 * R);
+    limb(r, knee, foot, color, 0.2 * R);
+    r.circle(foot.x + 0.08 * R, foot.y, 0.12 * R, "#1f2937");
+  };
+  for (const w of [rear, front]) {
+    wheel(r, w.x, w.y, R, spin, "rgba(255,255,255,.4)", 12);
+    r.ctx.beginPath();
+    r.ctx.arc(r.sx(w.x), r.sy(w.y), R * r.scale * 0.97, 0, TAU);
+    r.ctx.strokeStyle = "#1f2937";
+    r.ctx.lineWidth = Math.max(3, R * r.scale * 0.09);
+    r.ctx.stroke();
+  }
+  r.circle(front.x + 0.97 * R * Math.cos(spin), front.y + 0.97 * R * Math.sin(spin), 0.09 * R, "#e63946", undefined, 4);
+  leg(-1, "#1e293b"); // far leg, behind the frame
+  for (const [a, b] of [
+    [rear, crank],
+    [crank, head],
+    [rear, seatTube],
+    [seatTube, head],
+    [head, front],
+  ])
+    r.line(a.x, a.y, b.x, b.y, frame, Math.max(3, 0.13 * R * r.scale));
+  r.line(seatTube.x, seatTube.y, hip.x + 0.03 * R, hip.y - 0.1 * R, "#1f2937", 3);
+  r.rect(hip.x - 0.32 * R, hip.y - 0.12 * R, 0.62 * R, 0.13 * R, "#1f2937", undefined, 3);
+  r.line(head.x, head.y, hand.x - 0.1 * R, hand.y, "#475569", 3);
+  r.circle(crank.x, crank.y, 0.28 * R, "#e5e7eb", COLORS.ink);
+  leg(1, pants); // near leg
+  const shoulder = hip.add(new Vec2(0.8 * R, 1.55 * R));
+  limb(r, hip, shoulder, shirt, 0.62 * R);
+  limb(r, shoulder, hand, shirt, 0.22 * R);
+  r.circle(hand.x, hand.y, 0.12 * R, skin);
+  const headC = shoulder.add(new Vec2(0.32 * R, 0.7 * R));
+  r.circle(headC.x, headC.y, 0.42 * R, skin);
+  r.circle(headC.x - 0.05 * R, headC.y + 0.14 * R, 0.38 * R, "#4a3426"); // hair
+  r.circle(headC.x + 0.24 * R, headC.y - 0.02 * R, 0.055 * R, "#1f2937");
+  // name tag a fixed number of pixels above the head, so it never covers the rider on small screens
+  r.textPx(name, r.sx(headC.x), r.sy(headC.y + 0.42 * R) - 14, { size: 11, bold: true, color: "#fff", bg: shirt });
+  return { nose: front.add(new Vec2(1.15 * R, 0)) };
+}
+
+const keepUp = defineLevel((v) => {
+  const R_MOM = 0.34; // Mom's wheel radius, m
+  const V = v.num(4, 1); // Mom's speed, m/s
+  const R_TRUE = v.num(0.25, 3); // the wheel size that works
+  const W = roundTo(V / R_TRUE, 1); // Leo's wheel spin, rad/s
+  const rEx = V / W;
+  const wMom = V / R_MOM;
+  const rc = { min: 0.1, max: 0.45, step: 0.005 };
+  const T_END = 6;
+  const Y_MOM = 2; // Mom's lane (back), Leo's lane is at y = 0
+  const OFF = 0.7; // Mom is drawn a little right of center, clear of the readouts
   return {
     id: "10-4",
     chapter: 10,
-    title: "Bike Gears",
-    hook: `You pedal at a steady ${f(WP, 1)} rad/s. The front chainring has ${NF} teeth and the wheels have a ${RW * 100} cm radius. Pick the rear cog.`,
-    goal: `Cruise at ${f(VT, 1)} m/s (±0.4).`,
-    controls: [{ key: "nr", label: "Rear cog teeth", ...nc, value: 30, unit: "teeth" }],
+    title: "Keep Up with Mom",
+    hook: `Leo rides next to his mom on the bike path. Mom cruises at ${f(V, 1)} m/s. Leo pedals so his wheels spin at ${f(W, 1)} rad/s. What size wheels does Leo's bike need to keep up?`,
+    goal: `Ride beside Mom: Leo's speed ${f(V, 1)} m/s (±0.1).`,
+    controls: [{ key: "r", label: "Leo's wheel radius r", ...rc, value: snap(rc, R_MOM), unit: "m" }],
     predict: {
-      prompt: "You shift to a bigger rear cog (more teeth) and keep pedaling at the same rate. The bike goes…",
-      options: ["Faster", "Slower", "The same speed"],
-      correct: 1,
-      why: "The chain moves the same length per pedal turn. A bigger cog needs more chain to go around once, so the wheel turns fewer times: lower ω, lower v = rω. (Easier to pedal uphill, though!)",
+      prompt: "Leo's wheels are smaller than Mom's. When they ride side by side at the same speed, whose wheels spin faster?",
+      options: ["Leo's (smaller wheels)", "Mom's (bigger wheels)", "Neither: the same speed means the same spin"],
+      correct: 0,
+      why: `Each turn rolls one rim length (2πr) of road. A smaller wheel covers less road per turn, so it has to turn more often: ω = v ÷ r. At ${f(V, 1)} m/s, Mom's ${R_MOM} m wheels spin at only ${f(wMom, 1)} rad/s.`,
     },
     explain: {
-      prompt: "Why does a smaller rear cog make the bike faster?",
+      prompt: "Why is a rolling wheel's speed v = rω?",
       options: [
-        "The chain turns a small cog more times per pedal turn, so the wheel's ω goes up and v = rω goes up",
-        "Smaller cogs have less friction",
-        "The chain moves faster on a small cog",
+        "Each turn rolls out one circumference (2πr) of road, so each radian of turning moves the bike r meters",
+        "Bigger wheels are heavier, so they keep rolling farther",
+        "The road pushes harder on bigger wheels",
       ],
       correct: 0,
-      why: "The chain speed is the same on both gears: r_front·ω_pedal = r_rear·ω_wheel. Teeth are proportional to radius, so ω_wheel = ω_pedal·(N_front/N_rear), and v = R·ω_wheel.",
+      why: "With no slipping, the tyre lays its rim onto the road: one turn (2π rad) covers 2πr, so 1 rad covers r meters. Turning ω radians each second moves the bike rω meters each second. That's v_cm = rω on your sheet.",
     },
     hints: [
-      "Too slow? Smaller rear cog.",
-      "ω_wheel = ω_pedal × (front teeth ÷ rear teeth). v = R·ω_wheel.",
-      `N_rear = R·ω·N_front ÷ v = ${RW}·${f(WP, 1)}·${NF} ÷ ${f(VT, 1)} ≈ ${f(nEx, 1)} → ${Math.round(nEx)} teeth.`,
+      "Leo falling behind? Bigger wheels. Pulling ahead? Smaller wheels.",
+      `Rolling wheel: v = rω. You know v (Mom's ${f(V, 1)} m/s) and Leo's ω (${f(W, 1)} rad/s). Solve for r.`,
+      `r = v ÷ ω = ${f(V, 1)} ÷ ${f(W, 1)} ≈ ${f(rEx, 3)} m.`,
     ],
     journal: {
-      title: "Gears & chains",
-      tex: String.raw`r_1\omega_1 = r_2\omega_2 \;(\text{same chain speed}),\qquad v = R\,\omega_{wheel}`,
-      note: "Linked by a chain or belt: same rim speed, different ω.",
+      title: "Rolling wheels",
+      tex: String.raw`v_{cm} = r\omega\;\;(\text{no slipping}),\qquad 1\text{ turn} \to 2\pi r\text{ of road}`,
+      note: "Smaller wheels must spin faster to keep up.",
     },
-    view: { xMin: -1.4, xMax: 1.4, yMin: -0.15, yMax: 1.2, anchor: "bottom" },
-    graph: { title: "Bike speed vs. time", yLabel: "v (m/s)", tMax: T_END, yMin: 0, yMax: 14, series: [{ label: "speed", color: COLORS.velocity }], target: () => VT, targetLabel: "target" },
-    solution: { nr: snap(nc, nEx) },
-    wrong: { nr: snap(nc, nEx * 1.5) },
+    view: { xMin: -3.4, xMax: 3.4, yMin: -0.45, yMax: 4.05, anchor: "bottom" },
+    graph: {
+      title: "Speed vs. time",
+      yLabel: "v (m/s)",
+      tMax: T_END,
+      yMin: 0,
+      yMax: Math.ceil(rc.max * W) + 1,
+      series: [{ label: "Leo", color: COLORS.velocity }],
+      target: () => V,
+      targetLabel: "Mom",
+    },
+    solution: { r: snap(rc, rEx) },
+    wrong: { r: snap(rc, rEx * 0.6) },
     create(p) {
-      const vb = speed(p.nr);
-      const wWheel = vb / RW;
-      let x = 0,
-        thP = 0,
-        thW = 0;
+      const R = p.r;
+      const vL = R * W;
+      let xM = 0,
+        xL = 0;
       const sim: Sim = {
         t: 0,
         step(dt) {
           if (sim.t >= T_END) return;
-          x += vb * dt;
-          thP += WP * dt;
-          thW += wWheel * dt;
+          xM += V * dt;
+          xL += vL * dt;
           sim.t += dt;
         },
         isDone: () => sim.t >= T_END - 1e-9,
         outcome() {
-          const d = vb - VT;
-          if (Math.abs(d) <= 0.4) return { success: true, message: `Cruising at ${f(vb, 2)} m/s on the ${p.nr}-tooth cog.` };
-          return { success: false, message: `${f(vb, 2)} m/s. ${d > 0 ? "Too fast: bigger rear cog." : "Too slow: smaller rear cog."}` };
+          const d = vL - V;
+          const gap = xL - xM;
+          if (Math.abs(d) <= 0.1) return { success: true, message: `Side by side! Leo rides at ${f(vL, 2)} m/s on ${f(R, 3)} m wheels.` };
+          return {
+            success: false,
+            message: `Leo rides at ${f(vL, 2)} m/s and ends ${f(Math.abs(gap), 1)} m ${gap < 0 ? "behind" : "ahead"}. ${d < 0 ? "Bigger wheels." : "Smaller wheels."}`,
+          };
         },
         draw(r, ov) {
-          sky(r, r.sy(0), "day");
-          hillsScreen(r, r.sy(0), Math.min(r.h * 0.3, r.sy(0) * 0.5));
+          const cam = xM - OFF; // the camera rides along with Mom
+          const vis = r.visible();
+          sky(r, r.sy(Y_MOM), "day");
+          hillsScreen(r, r.sy(Y_MOM), Math.min(r.h * 0.25, r.sy(Y_MOM) * 0.45));
+          ground(r, Y_MOM, "grass");
+          r.rect(vis.xMin - 1, Y_MOM - 0.3, vis.xMax - vis.xMin + 2, 0.3, "#5a6170");
           ground(r, 0, "asphalt");
-          // road dashes scroll with the distance traveled
-          for (let k = -4; k < 6; k++) {
-            const xx = ((k * 0.6 - (x % 0.6)) % 3.6) - 1.5;
-            r.rect(xx, -0.09, 0.3, 0.03, "#fad65c");
+          // lane dashes are fixed to the road, so they slide back as the riders move
+          for (let k = Math.floor((cam + vis.xMin) / 1.2) - 1; k <= Math.ceil((cam + vis.xMax) / 1.2); k++) {
+            const xs = k * 1.2 - cam;
+            r.rect(xs, Y_MOM - 0.17, 0.45, 0.04, "#fad65c");
+            r.rect(xs, -0.24, 0.45, 0.05, "#fad65c");
           }
-          const rear = new Vec2(-0.55, RW),
-            front = new Vec2(0.55, RW),
-            crank = new Vec2(0, RW);
-          const rF = (NF * 0.0127) / TAU,
-            rR = (p.nr * 0.0127) / TAU;
-          for (const w of [rear, front]) {
-            wheel(r, w.x, w.y, RW, -thW, "rgba(255,255,255,.4)", 12);
-            // rubber tyre
-            r.ctx.beginPath();
-            r.ctx.arc(r.sx(w.x), r.sy(w.y), RW * r.scale * 0.97, 0, TAU);
-            r.ctx.strokeStyle = "#1f2937";
-            r.ctx.lineWidth = Math.max(3, RW * r.scale * 0.09);
-            r.ctx.stroke();
+          const lanes = [
+            { y0: Y_MOM, R: R_MOM, x: xM, v: V, name: "Mom", frame: "#0072B2", shirt: "#CC79A7" },
+            { y0: 0, R, x: xL, v: vL, name: "Leo", frame: "#D55E00", shirt: "#009E73" },
+          ];
+          for (const ln of lanes) {
+            const gap = ln.x - cam;
+            const shown = Math.max(vis.xMin + 1.8 * ln.R, Math.min(vis.xMax - 1.8 * ln.R, gap));
+            if (ov.trail) {
+              // paint marks: one every turn of the front wheel (2πr apart)
+              const per = TAU * ln.R;
+              const start = 1.6 * ln.R; // where the front wheel touched the road at t = 0
+              const turns = Math.floor(ln.x / per + 1e-9);
+              for (let k = 0; k <= turns; k++) {
+                const xs = start + k * per - cam + (shown - gap);
+                if (xs < vis.xMin - 0.5 || xs > vis.xMax + 0.5) continue;
+                r.rect(xs - 0.025, ln.y0 - 0.07, 0.05, 0.07, "#e63946");
+              }
+              if (turns >= 1) {
+                const a = start + (turns - 1) * per - cam + (shown - gap),
+                  b = a + per;
+                const yb = ln.y0 - (ln.y0 > 0 ? 0.24 : 0.36);
+                r.line(a, yb, b, yb, "#fee2e2", 1.5);
+                r.line(a, yb - 0.05, a, yb + 0.05, "#fee2e2", 1.5);
+                r.line(b, yb - 0.05, b, yb + 0.05, "#fee2e2", 1.5);
+                r.text(`1 turn = 2πr = ${f(per, 2)} m`, (a + b) / 2, yb - 0.1, { size: 10, bold: true, color: "#7f1d1d", bg: "rgba(255,255,255,.85)" });
+              }
+            }
+            const lead = ln.x - xM;
+            const tag = ln.name === "Leo" && Math.abs(lead) > 0.3 ? `Leo · ${f(Math.abs(lead), 1)} m ${lead < 0 ? "behind ◀" : "ahead ▶"}` : ln.name;
+            const b = bikeRider(r, shown, ln.y0, ln.R, ln.x / ln.R, ln.frame, ln.shirt, tag);
+            if (ov.velocity) r.arrow(b.nose, new Vec2(ln.v, 0), 0.1 * r.scale, COLORS.velocity, "v");
           }
-          // frame
-          for (const [ax, ay, bx, by] of [
-            [rear.x, rear.y, crank.x, crank.y],
-            [crank.x, crank.y, 0.35, 0.75],
-            [rear.x, rear.y, -0.1, 0.75],
-            [-0.1, 0.75, 0.35, 0.75],
-            [0.35, 0.75, front.x, front.y],
-          ])
-            r.line(ax, ay, bx, by, "#0072B2", 5);
-          r.line(-0.1, 0.75, -0.12, 0.85, "#1f2937", 3);
-          r.rect(-0.24, 0.85, 0.24, 0.05, "#1f2937", undefined, 3);
-          r.line(0.35, 0.75, 0.32, 0.92, "#475569", 3);
-          r.line(0.26, 0.92, 0.4, 0.92, "#1f2937", 4);
-          // chain + gears (gear sizes drawn 2× so they're visible)
-          const k = 2;
-          r.line(rear.x, rear.y + rR * k, crank.x, crank.y + rF * k, "#374151", 2);
-          r.line(rear.x, rear.y - rR * k, crank.x, crank.y - rF * k, "#374151", 2);
-          wheel(r, crank.x, crank.y, rF * k, -thP, "#e5e7eb", 5);
-          wheel(r, rear.x, rear.y, rR * k, -thW, "#fde68a", 5);
-          r.text(`${NF}T`, crank.x, crank.y - rF * k - 0.06, { size: 10, bold: true, bg: "rgba(255,255,255,.85)" });
-          r.text(`${p.nr}T`, rear.x, rear.y - rR * k - 0.06, { size: 10, bold: true, bg: "rgba(255,255,255,.85)" });
-          // pedal arm
-          r.line(crank.x, crank.y, crank.x + 0.17 * Math.cos(-thP), crank.y + 0.17 * Math.sin(-thP), "#111827", 3);
-          if (ov.velocity) r.arrow(new Vec2(0, 1.05), new Vec2(vb, 0), 12, COLORS.velocity, "v");
-          r.hud([`ω_pedal = ${f(WP, 1)} rad/s   ω_wheel = ${f(wWheel, 1)} rad/s`, `v = ${f(vb, 2)} m/s   distance ${f(x, 1)} m`]);
+          r.hud([`t = ${f(sim.t, 1)} s`, `Leo ${f(vL, 2)} m/s · Mom ${f(V, 1)} m/s`]);
         },
         readouts: () => [
-          { label: "Gear ratio front ÷ rear", value: `${f(NF / p.nr, 2)}` },
-          { label: "Wheel spin ω", value: `${f(wWheel, 1)} rad/s` },
-          { label: "Bike speed v = Rω", value: `${f(vb, 2)} m/s` },
-          { label: "Target", value: `${f(VT, 1)} m/s` },
+          { label: "Leo's wheel spin ω", value: `${f(W, 1)} rad/s` },
+          { label: "Leo's road per turn 2πr", value: `${f(TAU * R, 2)} m` },
+          { label: "Leo's speed v = rω", value: `${f(vL, 2)} m/s` },
+          { label: "Mom's speed", value: `${f(V, 1)} m/s` },
         ],
-        equation: () => String.raw`v = R\,\omega_{pedal}\frac{N_f}{N_r} = (${RW})(${n(WP)})\frac{${NF}}{${p.nr}} = ${n(vb, 2)}\text{ m/s}`,
-        sample: () => [vb],
+        equation: () => String.raw`v = r\omega = (${n(R, 3)})(${n(W, 1)}) = ${n(vL, 2)}\text{ m/s}`,
+        sample: () => [vL],
       };
       return sim;
     },
@@ -690,5 +783,5 @@ const centrifuge = defineLevel((v) => {
   };
 });
 
-export const chapter10 = [potteryWheel, carousel, rollingRace, bikeGears, centrifuge];
+export const chapter10 = [potteryWheel, carousel, rollingRace, keepUp, centrifuge];
 

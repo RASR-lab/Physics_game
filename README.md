@@ -19,7 +19,7 @@ This prototype covers **eight chapters of the PHYS 211 equation sheet**, with 40
 | 3 · Vectors | Vector Canyon | Drone Delivery · River Crossing · Canyon Supply Drop · Hiking Detour · Off the Table |
 | 5 · Newton's Laws | Newton Station | Coasting in Space · Elevator Scale · Skater Push-Off · Coupling Strength · Pulley Drop |
 | 6 · Newton's Laws: Applications | Friction Peaks | Will It Slide? · Spring Scale · Take the Curve · Steady Push · Banked Curve |
-| 10 · Rotational Kinematics | Spin City | Pottery Wheel · Carousel Riders · Rolling Race · Bike Gears · Centrifuge |
+| 10 · Rotational Kinematics | Spin City | Pottery Wheel · Carousel Riders · Rolling Race · Keep Up with Mom · Centrifuge |
 | 11 · Rotational Dynamics & Equilibrium | Torque Tower | Seesaw Balance · Rusty Bolt · Skater Spin · Swinging Door · Well Bucket |
 | 12 · Gravity | Orbit Outpost | Half Weight · Into Orbit · Tug of War in Space · Sky Tracker · Moon Hop |
 | 13 · Oscillations | Pendulum Park | Grandfather Clock · Smooth Ride · Match the Wave · Photogate Speed · Weigh an Astronaut |
