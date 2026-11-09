@@ -44,7 +44,7 @@ const stopAtTheLine = defineLevel((v) => {
     hints: [
       "Stopped too far? Brake harder.",
       "Use v² = v₀² + 2aΔx with v = 0.",
-      `a = ${V0}² ÷ (2 · ${STOP_LINE}) ≈ ${f(aEx, 2)} m/s².`,
+      `a = ${V0}² ÷ (2 · ${STOP_LINE}) ≈ ${f(aEx, 2)} m/s². That stops right on the line, so brake a touch harder: ${f(snap(decel, aEx * 1.01, "up"), 2)} m/s².`,
     ],
     journal: {
       title: "Stopping distance",
