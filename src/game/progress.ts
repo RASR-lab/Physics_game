@@ -60,8 +60,11 @@ export function markTutorialDone(chapter: number) {
   save(p);
 }
 
-export function totalStars(): number {
-  return Object.values(load().levels).reduce((s, l) => s + (l.stars || 0), 0);
+/** Stars earned, optionally only for the given level ids (saved stars for other levels are kept, not counted). */
+export function totalStars(ids?: string[]): number {
+  const levels = load().levels;
+  const list = ids ? ids.map((id) => levels[id]).filter(Boolean) : Object.values(levels);
+  return list.reduce((s, l) => s + (l.stars || 0), 0);
 }
 
 export function resetProgress() {

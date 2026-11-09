@@ -6,7 +6,12 @@ physical quantities (mass, angle, force…), watch an accurate simulation with
 force arrows, strobe "ghosts", live graphs and the equation with today's numbers
 plugged in, then explain what happened.
 
-This prototype covers **eight chapters of the PHYS 211 equation sheet**, with 40 levels:
+This prototype covers **eight chapters of the PHYS 211 equation sheet**, with 40 levels.
+
+> **Currently live: Chapters 10–13 only.** Chapters 2, 3, 5 and 6 are hidden, not deleted:
+> they are marked `hidden: true` in `src/levels/index.ts`, so they stay in the code and the
+> tests but are left off the map, the journal, the star total and "Next level", and their
+> `#level-…` / `#tutorial-…` links go to the map. Remove `hidden: true` from a chapter to bring it back.
 
 | Chapter | World | Levels |
 |---|---|---|
