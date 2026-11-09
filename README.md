@@ -31,6 +31,12 @@ something accelerates, Work = Fd cos θ instead of τ = rF sin θ…). A wrong p
 equation, where it is on the sheet, and why. The Data panel keeps its plugged-in equation
 hidden until this step is done, and the choices are shuffled every play.
 
+**3 tries per situation.** Students get 3 launches to reach the goal with one set of numbers
+(`MAX_ATTEMPTS` in `src/game/rules.ts`). After the third miss, Launch and the sliders lock, the
+💡 hints stay open so they can see how to solve it, and "🎲 Try new numbers" deals a fresh
+version of the level with 3 new tries. Launches after a win don't count, and neither does the
+tutorial's scripted demo launch.
+
 **Every play is a new problem.** Each time a level opens, the numbers in the story (speeds,
 distances, masses, targets…) move by up to ±20%, and the Predict and Explain answer options are
 shuffled. Hints, worked answers, graphs and success checks are all recomputed from the new

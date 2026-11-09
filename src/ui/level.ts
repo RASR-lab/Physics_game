@@ -6,6 +6,7 @@ import { Renderer } from "../render/renderer";
 import { LiveGraph } from "../render/graph";
 import { Celebration } from "../render/art/celebrate";
 import { getLevel, recordLevel, tutorialDone } from "../game/progress";
+import { MAX_ATTEMPTS } from "../game/rules";
 import { EQUATIONS, type EqId, type SheetEquation } from "../levels/equations";
 import { TUTORIALS } from "../tutorials";
 import { startTour } from "./tour";
@@ -27,6 +28,7 @@ export interface LevelAPI {
   answerEquation(i: number): void;
   equationAnswer(): number;
   setParam(key: string, v: number): void;
+  /** Launch as a demo: does not use up one of the student's tries. */
   launch(): void;
   isRunning(): boolean;
   lastOutcome(): Outcome | null;
@@ -53,6 +55,7 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
   let explainAnswer = -1;
   let equationAnswer = -1;
   const pickEq = level.pickEq!;
+  /** Tries used toward the goal (stops counting after a win). */
   let attempts = 0;
   let hintsShown = 0;
   let succeeded = false;
@@ -258,11 +261,35 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
     const body: Node[] = [h("h2", {}, h("span.step-n", {}, "3"), "Play")];
     if (before) body.push(h("p.small", {}, phase === "predict" ? "Predict first." : "Pick the equation first."));
     else {
-      body.push(controlsBox, h("div.row", {}, h("button.btn.primary", { onclick: () => launch(), disabled: running }, "▶ Launch"), hintBtn), outcomeBox, hintList);
-      if (attempts > 0) body.push(h("p.small", {}, `Attempts: ${attempts}`));
+      body.push(controlsBox, h("div.row", {}, h("button.btn.primary", { onclick: () => launch(), disabled: !canLaunch() }, "▶ Launch"), hintBtn), outcomeBox, hintList);
+      body.push(h("p.small.tries", {}, triesText()));
     }
     playBox.replaceChildren(...body);
-    sliderInputs.forEach((i) => (i.disabled = before || running));
+    sliderInputs.forEach((i) => (i.disabled = before || running || outOfTries()));
+  }
+
+  function outOfTries() {
+    return !succeeded && attempts >= MAX_ATTEMPTS;
+  }
+
+  function canLaunch() {
+    return phase !== "predict" && phase !== "equation" && !running && !outOfTries();
+  }
+
+  function triesText() {
+    if (succeeded) return attempts > 0 ? `Solved on try ${attempts} of ${MAX_ATTEMPTS}.` : "Solved!";
+    const left = MAX_ATTEMPTS - attempts;
+    if (left <= 0) return `No tries left for these numbers.`;
+    return attempts === 0
+      ? `You have ${MAX_ATTEMPTS} tries.`
+      : `${left} of ${MAX_ATTEMPTS} tries left.`;
+  }
+
+  /** New situation: fresh numbers (and a fresh count). The tutorial has fixed numbers, so it goes to the normal level. */
+  function newNumbersButton() {
+    return opts.restart
+      ? h("button.btn.primary", { onclick: () => opts.restart!() }, "🎲 Try new numbers")
+      : h("a.btn.primary", { href: `#level-${level.id}` }, "🎲 Try new numbers");
   }
 
   function renderExplain() {
@@ -393,11 +420,12 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
     pauseBtn.textContent = "❚❚ Pause";
     preview();
     if (phase !== "predict") renderPlay();
-    launchBtn.disabled = phase === "predict" || phase === "equation";
+    launchBtn.disabled = !canLaunch();
   }
 
-  function launch() {
-    if (phase === "predict" || phase === "equation") return;
+  /** `demo` launches (the tutorial's scripted try) don't use up a try. */
+  function launch(demo = false) {
+    if (!canLaunch()) return;
     sim = level.create(params);
     celebrate.clear();
     graph?.clear();
@@ -405,7 +433,7 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
     running = true;
     paused = false;
     outcomeShown = false;
-    attempts++;
+    if (!succeeded && !demo) attempts++;
     pauseBtn.disabled = false;
     launchBtn.disabled = true;
     outcomeBox.className = "outcome running";
@@ -430,20 +458,25 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
   function finish() {
     running = false;
     pauseBtn.disabled = true;
-    launchBtn.disabled = false;
     const o = sim.outcome();
     lastOutcome = o;
-    celebrate.start(o.success, sim.banner?.(o));
+    if (o.success) succeeded = true;
+    celebrate.start(o.success, outOfTries() ? "Out of tries. Try new numbers" : sim.banner?.(o));
     outcomeShown = true;
     outcomeBox.className = `outcome ${o.success ? "win" : "fail"}`;
     outcomeBox.replaceChildren(h("strong", {}, o.success ? "✅ " : "❌ "), o.message);
-    if (!o.success && attempts >= 2 && hintsShown === 0) outcomeBox.append(h("p.small", {}, "Stuck? Try 💡."));
+    launchBtn.disabled = !canLaunch();
+    if (outOfTries()) {
+      outcomeBox.append(
+        h("p.small", {}, `That was your last of ${MAX_ATTEMPTS} tries for these numbers. Open 💡 to see how to solve it, then try a new set.`),
+        newNumbersButton(),
+      );
+    } else if (!o.success && attempts >= MAX_ATTEMPTS - 1 && hintsShown === 0) outcomeBox.append(h("p.small", {}, "Stuck? Try 💡."));
     if (!predictionRevealed) {
       predictionRevealed = true;
       renderPredict();
     }
-    if (o.success && !succeeded) {
-      succeeded = true;
+    if (o.success && phase === "play") {
       phase = "explain";
       renderAll();
       explainBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -511,7 +544,7 @@ export function renderLevel(root: HTMLElement, def: LevelDef, opts: LevelOpts = 
     answerEquation,
     equationAnswer: () => equationAnswer,
     setParam: (k, v) => setters[k]?.(v),
-    launch,
+    launch: () => launch(true),
     isRunning: () => running,
     lastOutcome: () => lastOutcome,
   };

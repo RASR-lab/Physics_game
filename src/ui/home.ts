@@ -3,6 +3,7 @@ import { getLevel, resetProgress, totalStars, tutorialDone } from "../game/progr
 import { TUTORIALS } from "../tutorials";
 import { h, stars } from "./dom";
 import { MAX_STARS } from "./level";
+import { MAX_ATTEMPTS } from "../game/rules";
 
 export function renderHome(root: HTMLElement) {
   const total = totalStars(VISIBLE_LEVELS.map((l) => l.id));
@@ -19,7 +20,7 @@ export function renderHome(root: HTMLElement) {
       { "aria-label": "How to play" },
       step("1", "Predict", "Guess first."),
       step("2", "Equation", "Pick it from your sheet."),
-      step("3", "Play", "Run the experiment."),
+      step("3", "Play", `Run the experiment. ${MAX_ATTEMPTS} tries.`),
       step("4", "Explain", "Say why. Earn ⭐."),
       step("🎓", "New?", "Start with the tutorial."),
     ),
