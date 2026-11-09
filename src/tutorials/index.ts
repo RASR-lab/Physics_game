@@ -4,6 +4,7 @@
  * The demo attempt is deliberately wrong, to show how to learn from a miss.
  */
 import type { LevelAPI } from "../ui/level";
+import { MAX_ATTEMPTS } from "../game/rules";
 
 export interface TourStep {
   /** data-tour target to spotlight; omit for a centered card. */
@@ -107,7 +108,7 @@ function makeTutorial(s: Spec): Tutorial {
       },
       {
         title: "Your turn!",
-        body: "Stuck? Tap 💡. Win, then explain, for ⭐⭐⭐. Every level, ask:",
+        body: `You get ${MAX_ATTEMPTS} tries (the demo was free). Stuck? Tap 💡. Win, then explain, for ⭐⭐⭐. Every level, ask:`,
         think: s.checklist,
       },
     ],
